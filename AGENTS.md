@@ -1,4 +1,4 @@
-# CLAUDE.md — Doom
+# AGENTS.md — Doom
 
 project brain. read this at the start of every session.
 
@@ -204,5 +204,5 @@ the moment a judge remembers is **step 3 next to step 4**: a public number that 
 ➠ **no login on the demo.** the rubric says "not a prototype behind a login"
 ➠ **no testnet-only anything.** sepolia is for rehearsal, mainnet is the submission
 ➠ **do not rebuild the wallet picker, shield, or unshield.** the starter kit has them
-➠ **do not rename this file to AGENTS.md until submission day**, and never commit it under the name CLAUDE.md
+➠ **do not re-create a `CLAUDE.md`.** this file is the brain and it is already named `AGENTS.md`. Next 16 will rewrite both names on every dev run if `agentRules: false` is ever removed from `next.config.js`
 ➠ **do not add a feature after phase 6 freeze.** days 12 and 13 are buffer, not scope
