@@ -191,6 +191,7 @@ the moment a judge remembers is **step 3 next to step 4**: a public number that 
 ➠ `u256` → `u128` needs `try_into().expect(...)`. it will silently be the bug if you skip it
 ➠ `strk20-by-example.org` was unreachable from this network during planning. the monorepo source is the authority — read the Cairo, not the docs site
 ➠ **the starter kit does not type-check as forked.** `starknet@10.4.0` pins `@starknet-io/get-starknet-wallet-standard` to exactly `6.0.2` (aliased `-v6`), while `@starknet-io/get-starknet-discovery@6.0.2` floats on `^6.0.2` and now resolves to `6.0.5`. two copies, drifted types, and `yarn build` fails type-check while compiling fine. fixed with a scoped `resolutions` entry pinning discovery's copy to `6.0.2`. **do not** pin it globally — a `^5.0.0` consumer in the tree needs the old major
+➠ **Next 16 is not the Next.js in your training data.** APIs, conventions and file layout differ. read `node_modules/next/dist/docs/` before writing app code. it also rewrites `AGENTS.md`/`CLAUDE.md` on every `next dev` unless `agentRules: false` is set in `next.config.js` — it is
 ➠ `.env.local` holds the Alchemy key. it is gitignored. confirm that before the first push, not after
 
 ## things NOT to do
