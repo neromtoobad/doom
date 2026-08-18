@@ -1,0 +1,27 @@
+# secrets — never commit
+.env
+.env.local
+.env*.local
+*.key
+*.pem
+
+# node
+node_modules/
+.next/
+out/
+dist/
+.yarn/
+yarn-error.log
+npm-debug.log*
+
+# cairo
+cairo/target/
+cairo/.snfoundry_cache/
+
+# agent tooling — not part of the submission
+.agents/
+.claude/
+
+# os
+.DS_Store
+Thumbs.db
