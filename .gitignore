@@ -25,3 +25,10 @@ cairo/.snfoundry_cache/
 # os
 .DS_Store
 Thumbs.db
+
+# next.js / vercel
+next-env.d.ts
+*.tsbuildinfo
+.vercel
+/coverage
+/build

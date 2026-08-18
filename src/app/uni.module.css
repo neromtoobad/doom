@@ -1,0 +1,467 @@
+/* Faithful Uniswap-style light theme for the WalletAccountV6 STRK20 panel:
+   clean white, scattered blurred token-orbs, flat card, soft-pink pills. */
+
+.page {
+  --ink: #0d0e0e;
+  --muted: #7d7d8a;
+  --bg: #ffffff;
+  --card: #ffffff;
+  --line: #eaeaef;
+  --inset: #f5f5f7;
+  --inset-2: #ededf1;
+  /* Lightened terracotta (adapted from #d75821) - var names kept for continuity. */
+  --pink: #e56b43;
+  --pink-soft: #fdefe9;
+  --pink-soft-2: #f9ddd1;
+  --pink-text: #b0491f;
+  --green: #0e9f6e;
+  --green-soft: #e7f7ef;
+  --danger: #e5484d;
+
+  position: relative;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body), system-ui, sans-serif;
+  overflow-x: hidden;
+  isolation: isolate;
+}
+
+/* --- Scattered token-orb background ------------------------------------- */
+.aurora {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+/* Scattered blurred token coins (USDC / BTC / STRK / ETH) - position, blur and
+   opacity are set inline per instance in page.tsx. */
+.tok {
+  position: absolute;
+  display: inline-flex;
+  will-change: transform;
+}
+.tok svg { display: block; }
+
+/* --- Top nav ------------------------------------------------------------- */
+.nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 18px 24px;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-weight: 600;
+  font-size: 17px;
+  letter-spacing: -0.01em;
+}
+.brandImg {
+  height: 26px;
+  width: auto;
+  display: block;
+}
+
+/* --- Hero ---------------------------------------------------------------- */
+.hero {
+  text-align: center;
+  margin: 46px auto 30px;
+  padding: 0 20px;
+}
+.heroTitle {
+  font-weight: 600;
+  font-size: clamp(40px, 7vw, 76px);
+  line-height: 1.04;
+  letter-spacing: -0.035em;
+  margin: 0;
+  color: var(--ink);
+  text-wrap: balance;
+}
+.heroAccent { color: var(--pink); }
+.heroSub {
+  margin: 18px auto 0;
+  max-width: 420px;
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+/* --- Network status dots ------------------------------------------------ */
+.netDot { width: 7px; height: 7px; border-radius: 50%; }
+.netOk { color: var(--green); }
+.netOkDot { background: var(--green); }
+.netBad { color: var(--danger); }
+.netBadDot { background: var(--danger); }
+
+/* Buttons */
+.btn {
+  font-family: var(--font-body), sans-serif;
+  font-weight: 600;
+  font-size: 14px;
+  border: none;
+  border-radius: 999px;
+  padding: 11px 18px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 140ms, opacity 140ms, transform 120ms;
+}
+.btn:active { transform: scale(0.98); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btnGreen { color: var(--green); background: var(--green-soft); }
+.btnGreen:not(:disabled):hover { filter: brightness(0.97); }
+.btnBlock { width: 100%; padding: 15px; font-size: 16px; margin-top: 6px; }
+
+/* --- Readable result receipt ------------------------------------------- */
+.receipt {
+  margin-top: 12px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: var(--card);
+  border: 1px solid var(--line);
+}
+.receiptOk { border-color: #cdeede; background: var(--green-soft); }
+.receiptError { border-color: #f4cccb; background: #fdeceb; }
+.receiptPending { border-color: var(--pink-soft-2); background: var(--pink-soft); }
+.receiptHead {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-weight: 650;
+  font-size: 14px;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+.receiptIcon {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+  color: #fff;
+  flex: none;
+}
+.receiptOk .receiptIcon { background: var(--green); }
+.receiptError .receiptIcon { background: var(--danger); }
+.receiptPending .receiptIcon { background: var(--pink); }
+.receiptRows {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.receiptRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 0;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  font-size: 13px;
+}
+.receiptRow:first-child { border-top: none; }
+.receiptLabel { color: var(--muted); }
+.receiptValue {
+  color: var(--ink);
+  font-weight: 550;
+  font-variant-numeric: tabular-nums;
+}
+.receiptLink {
+  color: var(--pink-text);
+  font-weight: 600;
+  font-family: var(--font-mono-ui), monospace;
+  font-size: 12.5px;
+  text-decoration: none;
+}
+.receiptLink:hover { text-decoration: underline; }
+.receiptNote {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.04);
+  color: #24242c;
+  font-family: var(--font-mono-ui), monospace;
+  font-size: 12px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 220px;
+  overflow: auto;
+}
+
+.verdict {
+  margin-top: 10px;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: var(--inset);
+}
+.verdictPass { border-color: #bfe9d5; background: var(--green-soft); }
+.verdictFail { border-color: #f4c9cb; background: #fdecec; }
+.verdictHead {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-weight: 600;
+  font-size: 15px;
+  margin-bottom: 8px;
+}
+.verdictRow {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  font-size: 12.5px;
+  font-family: var(--font-mono-ui), monospace;
+  padding: 2px 0;
+}
+.verdictRow b { font-family: var(--font-body), sans-serif; color: var(--muted); font-weight: 500; }
+
+.warn {
+  font-size: 12.5px;
+  color: var(--danger);
+  font-weight: 500;
+  padding: 8px 12px 0;
+  line-height: 1.45;
+}
+
+/* Connect controls */
+.connectPill {
+  font-family: var(--font-body), sans-serif;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--pink-text);
+  background: var(--pink-soft);
+  border: none;
+  border-radius: 999px;
+  padding: 9px 18px;
+  cursor: pointer;
+  transition: background 140ms;
+}
+.connectPill:hover { background: var(--pink-soft-2); }
+.connectPill:disabled { opacity: 0.6; cursor: wait; }
+.addrPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-family: var(--font-mono-ui), monospace;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 7px 7px 7px 13px;
+  cursor: pointer;
+}
+.addrDot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); }
+.addrDisconnect {
+  font-family: var(--font-body), sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  background: var(--inset);
+  border-radius: 999px;
+  padding: 4px 10px;
+}
+
+.errorText { color: var(--danger); font-size: 13px; margin-top: 12px; font-weight: 500; }
+
+/* --- Wallet picker modal ------------------------------------------------ */
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(13, 14, 14, 0.32);
+  backdrop-filter: blur(3px);
+}
+.modal {
+  width: min(400px, calc(100vw - 32px));
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  box-shadow: 0 20px 60px -18px rgba(13, 14, 14, 0.32);
+  padding: 18px;
+}
+.modalHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.modalTitle { font-weight: 600; font-size: 17px; letter-spacing: -0.01em; }
+.modalClose {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 50%;
+  background: var(--inset);
+  color: var(--muted);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 140ms;
+}
+.modalClose:not(:disabled):hover { background: var(--inset-2); color: var(--ink); }
+.modalClose:disabled { opacity: 0.5; cursor: not-allowed; }
+.walletList { display: flex; flex-direction: column; gap: 8px; }
+.walletRow {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  width: 100%;
+  padding: 13px 14px;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  background: #fff;
+  cursor: pointer;
+  text-align: left;
+  transition: background 140ms, border-color 140ms;
+}
+.walletRow:not(:disabled):hover { background: var(--inset); border-color: var(--pink-soft-2); }
+.walletRow:disabled { opacity: 0.6; cursor: wait; }
+.walletIcon { width: 32px; height: 32px; border-radius: 8px; flex: none; }
+.walletName { flex: 1; font-weight: 600; font-size: 15px; color: var(--ink); }
+.walletGo { color: var(--muted); font-size: 16px; }
+.walletHint {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+  padding: 6px 2px;
+}
+.walletHint a { color: var(--pink-text); font-weight: 600; text-decoration: none; }
+.walletHint a:hover { text-decoration: underline; }
+
+/* Footer */
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 44px auto 34px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.footer a { color: var(--pink-text); text-decoration: none; font-weight: 500; }
+.footer a:hover { text-decoration: underline; }
+.footerDot { color: #d8d8de; }
+
+/* --- Tabbed action interface (Umbra-style) ------------------------------ */
+.panel { width: min(520px, calc(100vw - 32px)); margin: 0 auto; }
+
+.tabs {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.tab {
+  font-family: var(--font-body), sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--muted);
+  background: transparent;
+  border: none;
+  border-radius: 999px;
+  padding: 8px 15px;
+  cursor: pointer;
+  transition: background 140ms, color 140ms;
+}
+.tab:hover { color: var(--ink); }
+.tabActive { color: var(--pink-text); background: var(--pink-soft); font-weight: 600; }
+.tabActive:hover { color: var(--pink-text); }
+
+.inputBlock {
+  background: var(--inset);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 18px 18px 16px;
+}
+.inputLabel { color: var(--pink-text); font-weight: 600; font-size: 14px; }
+.inputMain {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 8px 0 12px;
+}
+.bigValue { font-size: 40px; font-weight: 500; letter-spacing: -0.03em; line-height: 1; }
+.tokenPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--ink);
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 7px 15px 7px 8px;
+  white-space: nowrap;
+}
+.tokenDot {
+  display: inline-flex;
+  align-items: center;
+}
+.tokenDot svg { display: block; }
+.subLine {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.subMono { font-family: var(--font-mono-ui), monospace; }
+
+.feeRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 8px;
+  padding: 15px 16px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  font-size: 14px;
+  color: var(--muted);
+  background: #fff;
+}
+.feeVal { display: inline-flex; align-items: center; gap: 7px; color: var(--ink); font-weight: 500; }
+
+.btnCta {
+  width: 100%;
+  margin-top: 10px;
+  padding: 16px;
+  font-family: var(--font-body), sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  color: #fff;
+  background: var(--pink);
+  border: none;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: filter 140ms, transform 120ms, opacity 140ms;
+}
+.btnCta:not(:disabled):hover { filter: brightness(1.06); }
+.btnCta:active { transform: scale(0.99); }
+.btnCta:disabled { opacity: 0.4; cursor: not-allowed; }
+
+@media (prefers-reduced-motion: reduce) {
+  .btn, .connectPill, .btnCta, .tab { transition: none; }
+}

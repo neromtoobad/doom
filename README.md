@@ -85,6 +85,11 @@ Next.js 16 · React 19 · TypeScript 5.9 · starknet.js 10.4.0 · Cairo (edition
 
 Built with Claude Code: planning and competitive research, Cairo contract drafting and review, and frontend scaffolding. All architecture decisions, the mechanism design and every mainnet transaction are the author's own. Commits are authored by a human account.
 
+## Built on
+
+- [STRK20 starter kit](https://github.com/Akashneelesh/strk20-starter-kit) — wallet picker, shield/unshield, private transfer, and the `privacy_invoke` echo helper this project's anonymizer is derived from
+- [starknet-privacy](https://github.com/starkware-libs/starknet-privacy) (Apache-2.0) — pool contracts and reference anonymizers
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
