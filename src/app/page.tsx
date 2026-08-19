@@ -30,6 +30,38 @@ type Result =
   | { kind: "ok"; msg: string; tx?: string }
   | { kind: "err"; msg: string };
 
+/** Semicircular chance dial. Green fills clockwise with the YES share. */
+function Gauge({ pct }: { pct: number }) {
+  const r = 62;
+  const len = Math.PI * r;
+  const filled = (pct / 100) * len;
+  return (
+    <div className={s.gauge}>
+      <svg width="148" height="92" viewBox="0 0 148 92" aria-hidden>
+        <path
+          d={`M 12 80 A ${r} ${r} 0 0 1 136 80`}
+          fill="none"
+          stroke="#2a2a31"
+          strokeWidth="11"
+          strokeLinecap="round"
+        />
+        <path
+          d={`M 12 80 A ${r} ${r} 0 0 1 136 80`}
+          fill="none"
+          stroke="#22c55e"
+          strokeWidth="11"
+          strokeLinecap="round"
+          strokeDasharray={`${filled} ${len}`}
+        />
+      </svg>
+      <div className={s.gaugeVal}>
+        <div className={s.gaugePct}>{pct}%</div>
+        <div className={s.gaugeCap}>chance</div>
+      </div>
+    </div>
+  );
+}
+
 export default function MarketPage() {
   const myWalletAccount = useStoreWallet((st) => st.myWalletAccount);
   const address = useStoreWallet((st) => st.address);
@@ -38,7 +70,7 @@ export default function MarketPage() {
   const [outcome, setOutcome] = useState<number>(OUTCOME_YES);
   const [amount, setAmount] = useState("1");
   const [result, setResult] = useState<Result>({ kind: "idle" });
-  const [freshSecret, setFreshSecret] = useState<string>("");
+  const [freshSecret, setFreshSecret] = useState("");
   const [claimSecret, setClaimSecret] = useState("");
   const [saved, setSaved] = useState<SavedPosition[]>([]);
 
@@ -48,7 +80,7 @@ export default function MarketPage() {
     try {
       setMarket(await readMarket(provider));
     } catch {
-      /* leave the last good state on a transient RPC hiccup */
+      /* keep the last good state through a transient RPC hiccup */
     }
   }, [provider]);
 
@@ -62,8 +94,14 @@ export default function MarketPage() {
 
   const isResolver =
     !!market && !!address && num.toBigInt(market.resolver) === num.toBigInt(address || "0x0");
-
+  const settled = market?.resolved ?? false;
   const yesPct = market ? Math.round(market.yesShare * 100) : 50;
+  const winnerLabel =
+    market?.winningOutcome === OUTCOME_YES
+      ? "Settled YES"
+      : market?.winningOutcome === OUTCOME_NO
+        ? "Settled NO"
+        : "Void — refunded";
 
   async function stake() {
     if (!myWalletAccount) return setResult({ kind: "err", msg: "Connect a wallet first." });
@@ -76,18 +114,16 @@ export default function MarketPage() {
     if (wei <= 0n) return setResult({ kind: "err", msg: "Amount must be greater than zero." });
 
     const secret = randomSecret();
-    const commitment = computeCommitment(secret);
     setFreshSecret(secret);
     setResult({ kind: "pending", msg: "Confirm in your wallet…" });
-
     try {
       const r = await myWalletAccount.strk20InvokeTransaction(
-        buyActions(wei, outcome, commitment),
+        buyActions(wei, outcome, computeCommitment(secret)),
       );
       const tx = r.transaction_hash;
       savePosition({
         secret,
-        commitment,
+        commitment: computeCommitment(secret),
         outcome,
         amount: wei.toString(),
         at: Date.now(),
@@ -110,10 +146,9 @@ export default function MarketPage() {
     setResult({ kind: "pending", msg: "Confirm in your wallet…" });
     try {
       const r = await myWalletAccount.strk20InvokeTransaction(claimActions(secret, address));
-      const tx = r.transaction_hash;
       setResult({ kind: "pending", msg: "Waiting for confirmation…" });
-      await provider.waitForTransaction(tx, { retries: 400, retryInterval: 3000 });
-      setResult({ kind: "ok", msg: "Claimed into a shielded note.", tx });
+      await provider.waitForTransaction(r.transaction_hash, { retries: 400, retryInterval: 3000 });
+      setResult({ kind: "ok", msg: "Claimed into a shielded note.", tx: r.transaction_hash });
       refresh();
     } catch (e: unknown) {
       setResult({ kind: "err", msg: (e as { message?: string })?.message ?? String(e) });
@@ -135,244 +170,270 @@ export default function MarketPage() {
     }
   }
 
-  const settled = market?.resolved ?? false;
-  const winnerLabel =
-    market?.winningOutcome === OUTCOME_YES
-      ? "YES"
-      : market?.winningOutcome === OUTCOME_NO
-        ? "NO"
-        : "VOID — stakes refunded";
-
   return (
     <main className={s.page}>
-      <div className={s.shell}>
-        <header className={s.brand}>
-          <span className={s.wordmark}>DOOM</span>
-          <span className={s.tagline}>the price is public, the voters are not</span>
-        </header>
+      <nav className={s.nav}>
+        <div className={s.navLeft}>
+          <div className={s.mark}>D</div>
+          <span className={s.wordmark}>Doom</span>
+          <span className={s.navTag}>the price is public, the voters are not</span>
+        </div>
+        <div className={s.navRight}>
+          <span className={`${s.chip} ${s.chipDim}`}>Starknet mainnet</span>
+        </div>
+      </nav>
 
-        <section className={s.hero}>
-          <div className={s.kicker}>
-            <span className={settled ? `${s.dot} ${s.dotClosed}` : s.dot} />
-            {settled ? `Settled · ${winnerLabel}` : "Open · staking live on Starknet mainnet"}
+      <div className={s.shell}>
+        <section className={s.stats}>
+          <div>
+            <div className={s.statLabel}>Total staked</div>
+            <div className={s.statValue}>{market ? fmtStrk(market.total) : "—"} STRK</div>
           </div>
-          <h1 className={s.question}>{market?.question ?? "Loading market…"}</h1>
+          <div>
+            <div className={s.statLabel}>Open markets</div>
+            <div className={s.statValue}>1</div>
+          </div>
+          <div>
+            <div className={s.statLabel}>Participants known</div>
+            <div className={`${s.statValue} ${s.statHidden}`}>0</div>
+            <div className={s.statNote}>and that is the point</div>
+          </div>
         </section>
 
+        <div className={s.filters}>
+          <span className={`${s.pill} ${s.pillOn}`}>Governance</span>
+          <span className={s.pill}>Shipping</span>
+          <span className={s.pill}>Treasury</span>
+          <span className={s.pill}>Grants</span>
+          <span className={s.filterSpacer} />
+          <span className={s.filterNote}>One market this sprint. More is not the point.</span>
+        </div>
+
         <div className={s.grid}>
-          {/* ── left: the public half ── */}
           <div>
-            <div className={s.card}>
-              <div className={s.odds}>
-                <div className={`${s.odd} ${s.oddYes}`}>
-                  <div className={s.oddLabel}>Yes</div>
-                  <div className={`${s.oddPct} ${s.yes}`}>{yesPct}%</div>
-                  <div className={s.oddPot}>
-                    {market ? `${fmtStrk(market.potYes)} STRK staked` : "—"}
-                  </div>
+            <article className={s.card}>
+              <div className={s.heroTop}>
+                <div className={settled ? `${s.status} ${s.statusClosed}` : s.status}>
+                  <span className={s.statusDot} />
+                  {settled ? winnerLabel : "Open · live on mainnet"}
                 </div>
-                <div className={`${s.odd} ${s.oddNo}`}>
-                  <div className={s.oddLabel}>No</div>
-                  <div className={`${s.oddPct} ${s.no}`}>{100 - yesPct}%</div>
-                  <div className={s.oddPot}>
-                    {market ? `${fmtStrk(market.potNo)} STRK staked` : "—"}
-                  </div>
+                <div className={s.heroRow}>
+                  <h1 className={s.question}>{market?.question ?? "Loading market…"}</h1>
+                  <Gauge pct={yesPct} />
                 </div>
               </div>
 
-              <div className={s.bar}>
-                <div className={s.barYes} style={{ width: `${yesPct}%` }} />
+              <div className={s.sides}>
+                <div className={`${s.side} ${s.sideYes}`}>
+                  <span className={`${s.sideName} ${s.yes}`}>Yes</span>
+                  <span className={s.sideAmt}>
+                    {market ? fmtStrk(market.potYes) : "—"} STRK
+                  </span>
+                </div>
+                <div className={`${s.side} ${s.sideNo}`}>
+                  <span className={`${s.sideName} ${s.no}`}>No</span>
+                  <span className={s.sideAmt}>{market ? fmtStrk(market.potNo) : "—"} STRK</span>
+                </div>
               </div>
 
-              <div className={s.stat}>
-                <span>Total staked</span>
-                <span className={s.statVal}>
-                  {market ? `${fmtStrk(market.total)} STRK` : "—"}
+              <div className={s.meta}>
+                <span className={s.metaItem}>
+                  Settlement <span className={s.metaVal}>Parimutuel</span>
                 </span>
-              </div>
-              <div className={s.stat}>
-                <span>Settlement</span>
-                <span className={s.statVal}>Parimutuel · winners split the pot</span>
-              </div>
-              <div className={s.stat}>
-                <span>Market</span>
-                <span className={s.statVal}>
+                <span className={s.metaItem}>
+                  Resolver <span className={s.metaVal}>Named, single</span>
+                </span>
+                <span className={s.metaItem}>
+                  Contract{" "}
                   <a
-                    className={s.link}
+                    className={`${s.metaVal} ${s.link}`}
                     href={`https://voyager.online/contract/${MARKET}`}
                     target="_blank"
                     rel="noreferrer"
                   >
-                    {MARKET.slice(0, 10)}…{MARKET.slice(-6)}
+                    {MARKET.slice(0, 8)}…{MARKET.slice(-4)}
                   </a>
                 </span>
               </div>
+            </article>
 
-              {/* The point of the whole product, stated where a leaderboard would be. */}
-              <div className={s.void}>
-                <div className={s.voidTitle}>No participant list</div>
-                <p className={s.voidBody}>
-                  Every other market shows you who is holding what. Doom cannot.{" "}
-                  <strong>Positions are keyed by a secret, not an address</strong>, and the
-                  contract is only ever called by the privacy pool — so it never learns who
-                  staked, even if it wanted to. This space stays empty by construction.
-                </p>
+            <section className={s.void}>
+              <div className={s.voidHead}>
+                <span className={s.voidTitle}>Holders</span>
+                <span className={s.voidTag}>unavailable by design</span>
               </div>
-            </div>
+              <p className={s.voidBody}>
+                Every other prediction market puts a leaderboard here. Doom cannot build one.{" "}
+                <strong>Positions are keyed by a secret, not an address</strong>, and the contract
+                is only ever called by the STRK20 privacy pool — so it never learns who staked,
+                even if it wanted to.
+              </p>
+              <div className={s.ghostRows}>
+                <div className={s.ghostRow}>—</div>
+                <div className={s.ghostRow}>—</div>
+                <div className={s.ghostRow}>—</div>
+              </div>
+            </section>
+
+            <p className={s.footNote}>
+              Draft contract, unaudited, written during an 18-day sprint. Stake small. Public: the
+              question, the odds, the totals, every transaction. Not public: who staked, how much
+              any individual staked, which side they took. The anonymity set is the STRK20
+              pool&apos;s, not Doom&apos;s alone, and timing correlation between shielding and
+              staking is a real leak this does not solve.
+            </p>
           </div>
 
-          {/* ── right: the trade panel ── */}
           <aside>
             <div className={s.card}>
-              <h2 className={s.panelTitle}>{settled ? "Claim" : "Take a position"}</h2>
-
-              {!settled && (
-                <>
-                  <div className={s.pick}>
-                    <button
-                      className={`${s.pickBtn} ${outcome === OUTCOME_YES ? s.pickYesOn : ""}`}
-                      onClick={() => setOutcome(OUTCOME_YES)}
-                    >
-                      Yes
-                    </button>
-                    <button
-                      className={`${s.pickBtn} ${outcome === OUTCOME_NO ? s.pickNoOn : ""}`}
-                      onClick={() => setOutcome(OUTCOME_NO)}
-                    >
-                      No
-                    </button>
-                  </div>
-
-                  <label className={s.label} htmlFor="amt">
-                    Amount (STRK, from your shielded balance)
-                  </label>
-                  <input
-                    id="amt"
-                    className={s.input}
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    inputMode="decimal"
-                    placeholder="1.0"
-                  />
-
-                  <button
-                    className={s.cta}
-                    onClick={stake}
-                    disabled={!myWalletAccount || result.kind === "pending"}
-                  >
-                    {result.kind === "pending" ? "Working…" : "Stake privately"}
-                  </button>
-
-                  <p className={s.hint}>
-                    Shield STRK first — a stake spends your shielded balance, not your public
-                    one. Two wallet prompts: the pool withdraws to the market, then invokes it.
-                  </p>
-                </>
-              )}
-
-              {settled && (
-                <>
-                  <label className={s.label} htmlFor="sec">
-                    Your secret
-                  </label>
-                  <input
-                    id="sec"
-                    className={s.input}
-                    value={claimSecret}
-                    onChange={(e) => setClaimSecret(e.target.value)}
-                    placeholder="0x…"
-                  />
-                  <button
-                    className={s.cta}
-                    onClick={claim}
-                    disabled={!myWalletAccount || result.kind === "pending"}
-                  >
-                    {result.kind === "pending" ? "Working…" : "Claim payout"}
-                  </button>
-                  {saved.length > 0 && (
-                    <button
-                      className={s.ghost}
-                      onClick={() => setClaimSecret(saved[saved.length - 1].secret)}
-                      disabled={result.kind === "pending"}
-                    >
-                      Use my last saved secret
-                    </button>
-                  )}
-                  <p className={s.hint}>
-                    Revealing the secret is the only thing that links a payout to a stake. It
-                    still never links either to you.
-                  </p>
-                </>
-              )}
-
-              <div style={{ marginTop: 18 }}>
-                <SelectWallet />
+              <div className={s.panelHead}>
+                <h2 className={s.panelTitle}>{settled ? "Claim payout" : "Take a position"}</h2>
               </div>
-
-              {freshSecret && (
-                <div className={s.secret}>
-                  <div className={s.secretTitle}>Save this. It is your position.</div>
-                  <div className={s.secretVal}>{freshSecret}</div>
-                  <p className={s.secretWarn}>
-                    Nobody can recover it — not us, not the contract, not StarkWare. Lose it and
-                    the stake is unreachable forever. It is saved in this browser too, but that
-                    is convenience, not a backup.
-                  </p>
-                </div>
-              )}
-
-              {result.kind !== "idle" && (
-                <div
-                  className={`${s.result} ${
-                    result.kind === "ok" ? s.ok : result.kind === "err" ? s.err : s.pending
-                  }`}
-                >
-                  {result.kind === "pending" ? "⋯ " : result.kind === "ok" ? "✓ " : "✕ "}
-                  {"msg" in result ? result.msg : ""}
-                  {"tx" in result && result.tx && (
-                    <>
-                      {" "}
-                      <a
-                        className={s.link}
-                        href={`https://voyager.online/tx/${result.tx}`}
-                        target="_blank"
-                        rel="noreferrer"
+              <div className={s.panelBody}>
+                {!settled ? (
+                  <>
+                    <div className={s.pick}>
+                      <button
+                        className={`${s.pickBtn} ${outcome === OUTCOME_YES ? s.pickYesOn : ""}`}
+                        onClick={() => setOutcome(OUTCOME_YES)}
                       >
-                        view transaction
-                      </a>
-                    </>
-                  )}
+                        Yes
+                      </button>
+                      <button
+                        className={`${s.pickBtn} ${outcome === OUTCOME_NO ? s.pickNoOn : ""}`}
+                        onClick={() => setOutcome(OUTCOME_NO)}
+                      >
+                        No
+                      </button>
+                    </div>
+                    <label className={s.label} htmlFor="amt">
+                      Amount, from your shielded balance
+                    </label>
+                    <div className={s.inputWrap}>
+                      <input
+                        id="amt"
+                        className={s.input}
+                        value={amount}
+                        onChange={(e) => setAmount(e.target.value)}
+                        inputMode="decimal"
+                        placeholder="1.0"
+                      />
+                      <span className={s.inputSuffix}>STRK</span>
+                    </div>
+                    <button
+                      className={s.cta}
+                      onClick={stake}
+                      disabled={!myWalletAccount || result.kind === "pending"}
+                    >
+                      {result.kind === "pending" ? "Working…" : "Stake privately"}
+                    </button>
+                    <p className={s.hint}>
+                      Shield STRK first — a stake spends your shielded balance, not your public
+                      one. Two wallet prompts: the pool withdraws to the market, then invokes it.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <label className={s.label} htmlFor="sec">
+                      Your secret
+                    </label>
+                    <div className={s.inputWrap}>
+                      <input
+                        id="sec"
+                        className={s.input}
+                        value={claimSecret}
+                        onChange={(e) => setClaimSecret(e.target.value)}
+                        placeholder="0x…"
+                      />
+                    </div>
+                    <button
+                      className={s.cta}
+                      onClick={claim}
+                      disabled={!myWalletAccount || result.kind === "pending"}
+                    >
+                      {result.kind === "pending" ? "Working…" : "Claim payout"}
+                    </button>
+                    {saved.length > 0 && (
+                      <button
+                        className={s.ghost}
+                        onClick={() => setClaimSecret(saved[saved.length - 1].secret)}
+                        disabled={result.kind === "pending"}
+                      >
+                        Use my last saved secret
+                      </button>
+                    )}
+                    <p className={s.hint}>
+                      Revealing the secret links a payout to a stake. It still links neither to
+                      you.
+                    </p>
+                  </>
+                )}
+
+                <div style={{ marginTop: 16 }}>
+                  <SelectWallet />
                 </div>
-              )}
+
+                {freshSecret && (
+                  <div className={s.secret}>
+                    <div className={s.secretTitle}>Save this. It is your position.</div>
+                    <div className={s.secretVal}>{freshSecret}</div>
+                    <p className={s.secretWarn}>
+                      Nobody can recover it — not us, not the contract, not StarkWare. Lose it and
+                      the stake is unreachable forever. It is mirrored into this browser, but that
+                      is convenience, not a backup.
+                    </p>
+                  </div>
+                )}
+
+                {result.kind !== "idle" && (
+                  <div
+                    className={`${s.result} ${
+                      result.kind === "ok" ? s.ok : result.kind === "err" ? s.err : s.pending
+                    }`}
+                  >
+                    {result.kind === "pending" ? "⋯ " : result.kind === "ok" ? "✓ " : "✕ "}
+                    {"msg" in result ? result.msg : ""}
+                    {"tx" in result && result.tx && (
+                      <>
+                        {" · "}
+                        <a
+                          className={s.link}
+                          href={`https://voyager.online/tx/${result.tx}`}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          view transaction
+                        </a>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
 
             {isResolver && !settled && (
               <div className={s.card} style={{ marginTop: 20 }}>
-                <h2 className={s.panelTitle}>Resolver</h2>
-                <p className={s.hint} style={{ marginTop: 0 }}>
-                  You hold the resolver key for this market. Settling is final.
-                </p>
-                <button className={s.ghost} onClick={() => resolve(OUTCOME_YES)}>
-                  Settle YES
-                </button>
-                <button className={s.ghost} onClick={() => resolve(OUTCOME_NO)}>
-                  Settle NO
-                </button>
-                <button className={s.ghost} onClick={() => resolve(OUTCOME_VOID)}>
-                  Settle VOID (refund everyone)
-                </button>
+                <div className={s.panelHead}>
+                  <h2 className={s.panelTitle}>Resolver</h2>
+                </div>
+                <div className={s.panelBody}>
+                  <p className={s.hint} style={{ marginTop: 0 }}>
+                    You hold the resolver key. Settling is final and cannot be undone.
+                  </p>
+                  <button className={s.ghost} onClick={() => resolve(OUTCOME_YES)}>
+                    Settle YES
+                  </button>
+                  <button className={s.ghost} onClick={() => resolve(OUTCOME_NO)}>
+                    Settle NO
+                  </button>
+                  <button className={s.ghost} onClick={() => resolve(OUTCOME_VOID)}>
+                    Settle VOID — refund everyone
+                  </button>
+                </div>
               </div>
             )}
           </aside>
         </div>
-
-        {/* Outside the grid so the trade panel stays above it when the columns stack. */}
-        <p className={s.footNote}>
-          Draft contract, unaudited, built during an 18-day sprint. Stake small. What is
-          public: the question, the odds, the totals, every transaction. What is not: who
-          staked, how much any individual staked, and which side they took. The anonymity set
-          is the STRK20 pool&apos;s, not Doom&apos;s alone.
-        </p>
       </div>
     </main>
   );
