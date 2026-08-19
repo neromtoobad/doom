@@ -1,8 +1,8 @@
 // Minimal ERC-20 for tests only. Not deployed to any network.
 //
-// DoomMarket only ever calls `balance_of` and `approve`, so this implements those
-// plus a `mint` used to simulate the pool having transferred a stake, and an
-// `allowance` view so tests can assert the market approved the pool for the payout.
+// v1 only needed balance_of and approve. v2's bond flow moves tokens for real, so
+// this now implements transfer and transfer_from with a genuine allowance check —
+// a permissive mock would hide exactly the accounting bugs the bond tests look for.
 
 use starknet::ContractAddress;
 
@@ -11,6 +11,10 @@ pub trait IMockErc20<TState> {
     fn balance_of(self: @TState, account: ContractAddress) -> u256;
     fn approve(ref self: TState, spender: ContractAddress, amount: u256) -> bool;
     fn allowance(self: @TState, owner: ContractAddress, spender: ContractAddress) -> u256;
+    fn transfer(ref self: TState, recipient: ContractAddress, amount: u256) -> bool;
+    fn transfer_from(
+        ref self: TState, sender: ContractAddress, recipient: ContractAddress, amount: u256,
+    ) -> bool;
     fn mint(ref self: TState, to: ContractAddress, amount: u256);
 }
 
@@ -40,6 +44,32 @@ pub mod MockErc20 {
             self: @ContractState, owner: ContractAddress, spender: ContractAddress,
         ) -> u256 {
             self.allowances.read((owner, spender))
+        }
+
+        fn transfer(ref self: ContractState, recipient: ContractAddress, amount: u256) -> bool {
+            let from = get_caller_address();
+            let bal = self.balances.read(from);
+            assert(bal >= amount, 'MOCK_INSUFFICIENT_BALANCE');
+            self.balances.write(from, bal - amount);
+            self.balances.write(recipient, self.balances.read(recipient) + amount);
+            true
+        }
+
+        fn transfer_from(
+            ref self: ContractState,
+            sender: ContractAddress,
+            recipient: ContractAddress,
+            amount: u256,
+        ) -> bool {
+            let spender = get_caller_address();
+            let allowed = self.allowances.read((sender, spender));
+            assert(allowed >= amount, 'MOCK_INSUFFICIENT_ALLOWANCE');
+            let bal = self.balances.read(sender);
+            assert(bal >= amount, 'MOCK_INSUFFICIENT_BALANCE');
+            self.allowances.write((sender, spender), allowed - amount);
+            self.balances.write(sender, bal - amount);
+            self.balances.write(recipient, self.balances.read(recipient) + amount);
+            true
         }
 
         fn mint(ref self: ContractState, to: ContractAddress, amount: u256) {

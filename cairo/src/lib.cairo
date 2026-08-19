@@ -5,6 +5,8 @@
 // doom_market: our anonymizer. The market itself.
 pub mod echo_helper;
 pub mod doom_market;
+// v2: staking deadline + bonded optimistic resolution, no trusted admin.
+pub mod doom_market_v2;
 
 // Test-only. Never deployed.
 pub mod mock_erc20;
