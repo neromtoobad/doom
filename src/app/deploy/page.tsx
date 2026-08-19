@@ -7,7 +7,7 @@
 // src/utils/constants.ts and this page stops mattering.
 
 import { useState } from "react";
-import { byteArray, hash, validateAndParseAddress } from "starknet";
+import { byteArray, hash, validateAndParseAddress, constants as SNconstants } from "starknet";
 import SelectWallet from "../components/client/WalletHandle/SelectWallet";
 import { useStoreWallet } from "../components/Wallet/walletContext";
 import * as constants from "@/utils/constants";
@@ -57,8 +57,12 @@ export default function DeployPage() {
       setError("Connect a wallet first.");
       return;
     }
-    if (chain !== "SN_MAIN") {
-      setError(`Wrong network: ${chain || "unknown"}. Switch the wallet to mainnet.`);
+    // requestChainId returns the raw felt id (0x534e5f4d41494e), not the "SN_MAIN" label.
+    if (chain !== SNconstants.StarknetChainId.SN_MAIN) {
+      setError(
+        `Wrong network. Wallet reports "${chain || "unknown"}", expected ` +
+          `"${SNconstants.StarknetChainId.SN_MAIN}" (mainnet).`,
+      );
       return;
     }
     setBusy(true);
@@ -130,7 +134,16 @@ export default function DeployPage() {
           <Row k="Resolver" v={address || "— connect a wallet —"} mono />
           <Row k="Token" v={constants.addrSTRK} mono />
           <Row k="Class hash" v={expectedClassHash} mono />
-          <Row k="Network" v={chain || "—"} />
+          <Row
+            k="Network"
+            v={
+              !chain
+                ? "— not connected —"
+                : chain === SNconstants.StarknetChainId.SN_MAIN
+                  ? "MAINNET ✓"
+                  : `NOT MAINNET (${chain})`
+            }
+          />
         </dl>
 
         <div style={{ margin: "20px 0" }}>
