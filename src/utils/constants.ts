@@ -67,3 +67,7 @@ export const DoomMarkets: string[] = [
 ];
 export const DoomMarketClassHash = "0xa8aa0595ab9099a13208546a9910c9d525dc13d124114de9541b6d71adce1f";
 export const DoomMarketQuestion = "Will strk20-hackathon PR #100 merge before 2026-08-25 23:59 UTC?";
+
+// Futarchy decisions. Each wraps two conditional DoomMarketV2 branches and
+// pronounces the outcome from their prices. See cairo/src/doom_decision.cairo.
+export const DoomDecisions: string[] = [];

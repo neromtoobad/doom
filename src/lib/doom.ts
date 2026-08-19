@@ -61,6 +61,9 @@ export type MarketState = {
   resolved: boolean;
   winningOutcome: number;
   resolver: string;
+  /** Unix seconds after which staking stops. null on v1 markets, which had no deadline. */
+  closesAt: number | null;
+  isV2: boolean;
 };
 
 export async function readMarket(
@@ -70,12 +73,18 @@ export async function readMarket(
   const call = (entrypoint: string) =>
     provider.callContract({ contractAddress: address, entrypoint, calldata: [] });
 
-  const [pots, resolvedRaw, winnerRaw, resolverRaw, questionRaw] = await Promise.all([
+  const [pots, resolvedRaw, winnerRaw, questionRaw] = await Promise.all([
     call("get_pots"),
     call("is_resolved"),
     call("get_winning_outcome"),
-    call("get_resolver"),
     call("get_question"),
+  ]);
+
+  // v1 exposes get_resolver; v2 renamed it get_arbiter and added a close time.
+  // Probing both keeps one board able to list either generation.
+  const [resolverRaw, closesRaw] = await Promise.all([
+    call("get_resolver").catch(() => call("get_arbiter")).catch(() => ["0x0"]),
+    call("get_closes_at").catch(() => null),
   ]);
 
   const potNo = num.toBigInt(pots[0]);
@@ -92,6 +101,8 @@ export async function readMarket(
     resolved: num.toBigInt(resolvedRaw[0]) === 1n,
     winningOutcome: Number(num.toBigInt(winnerRaw[0])),
     resolver: num.toHex(resolverRaw[0]),
+    closesAt: closesRaw ? Number(num.toBigInt(closesRaw[0])) : null,
+    isV2: closesRaw !== null,
   };
 }
 
@@ -186,4 +197,76 @@ export function parseStrk(input: string): bigint {
   const [w, f = ""] = input.trim().split(".");
   const frac = (f + "000000000000000000").slice(0, 18);
   return BigInt(w || "0") * 10n ** 18n + BigInt(frac || "0");
+}
+
+// ── futarchy ────────────────────────────────────────────────────────────────────
+// A DoomDecision wraps two conditional branch markets. The decision is whichever
+// branch prices success higher at close — a pure function of two market prices,
+// callable by anyone, with no authorized signer anywhere in it.
+
+export const DECISIONS: string[] = constants.DoomDecisions;
+
+export const DECISION_PENDING = 0;
+export const DECISION_ADOPT = 1;
+export const DECISION_REJECT = 2;
+export const DECISION_INCONCLUSIVE = 3;
+
+export type DecisionState = {
+  address: string;
+  proposal: string;
+  adopt: MarketState;
+  reject: MarketState;
+  /** 0 pending · 1 adopt · 2 reject · 3 inconclusive */
+  decision: number;
+  /** Basis points recorded at decide() time; both zero before. */
+  adoptBps: number;
+  rejectBps: number;
+  /** Latest close across both branches: decide() is callable after it. */
+  closesAt: number | null;
+};
+
+export async function readDecision(
+  provider: ProviderInterface,
+  address: string,
+): Promise<DecisionState> {
+  const call = (entrypoint: string) =>
+    provider.callContract({ contractAddress: address, entrypoint, calldata: [] });
+
+  const [proposalRaw, branchesRaw, decisionRaw, sharesRaw] = await Promise.all([
+    call("get_proposal"),
+    call("get_branches"),
+    call("get_decision"),
+    call("get_final_shares"),
+  ]);
+
+  const adoptAddr = num.toHex(branchesRaw[0]);
+  const rejectAddr = num.toHex(branchesRaw[1]);
+  const [adopt, reject] = await Promise.all([
+    readMarket(provider, adoptAddr),
+    readMarket(provider, rejectAddr),
+  ]);
+
+  const closes =
+    adopt.closesAt && reject.closesAt ? Math.max(adopt.closesAt, reject.closesAt) : null;
+
+  return {
+    address,
+    proposal: decodeByteArray(proposalRaw as string[]),
+    adopt,
+    reject,
+    decision: Number(num.toBigInt(decisionRaw[0])),
+    adoptBps: Number(num.toBigInt(sharesRaw[0])),
+    rejectBps: Number(num.toBigInt(sharesRaw[1])),
+    closesAt: closes,
+  };
+}
+
+/** decide() takes no arguments and anyone may call it. That is the whole point. */
+export function decideCall(decision: string) {
+  return [{ contractAddress: decision, entrypoint: "decide", calldata: [] }];
+}
+
+/** Live YES-share of a branch, for the pre-decision preview. */
+export function branchShareBps(m: MarketState): number {
+  return m.total === 0n ? 0 : Math.round(m.yesShare * 10000);
 }

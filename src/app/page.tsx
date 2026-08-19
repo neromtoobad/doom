@@ -5,11 +5,16 @@ import Image from "next/image";
 import { num } from "starknet";
 import s from "./market.module.css";
 import markImg from "../../public/brand/mark-96.png";
+import DecisionPanel from "./DecisionPanel";
 import SelectWallet from "./components/client/WalletHandle/SelectWallet";
 import { useStoreWallet } from "./components/Wallet/walletContext";
 import * as constants from "@/utils/constants";
 import {
+  DECISIONS,
   MARKETS,
+  decideCall,
+  readDecision,
+  type DecisionState,
   OUTCOME_NO,
   OUTCOME_VOID,
   OUTCOME_YES,
@@ -137,6 +142,7 @@ export default function Home() {
   const [freshSecret, setFreshSecret] = useState("");
   const [claimSecret, setClaimSecret] = useState("");
   const [saved, setSaved] = useState<SavedPosition[]>([]);
+  const [decisions, setDecisions] = useState<DecisionState[]>([]);
 
   const provider = constants.myFrontendProviders[0]; // mainnet
 
@@ -153,6 +159,11 @@ export default function Home() {
     const next: Record<string, MarketState> = {};
     for (const e of entries) if (e) next[e[0]] = e[1];
     setMarkets(next);
+
+    const ds = await Promise.all(
+      DECISIONS.map((a) => readDecision(provider, a).catch(() => null)),
+    );
+    setDecisions(ds.filter(Boolean) as DecisionState[]);
   }, [provider]);
 
   useEffect(() => {
@@ -267,6 +278,19 @@ export default function Home() {
     }
   }
 
+  async function decide(addr: string) {
+    if (!myWalletAccount) return setResult({ kind: "err", msg: "Connect a wallet first." });
+    setResult({ kind: "pending", msg: "Confirm decide() in your wallet…" });
+    try {
+      const r = await myWalletAccount.execute(decideCall(addr));
+      await provider.waitForTransaction(r.transaction_hash, { retries: 400, retryInterval: 3000 });
+      setResult({ kind: "ok", msg: "The market decided.", tx: r.transaction_hash });
+      refresh();
+    } catch (e: unknown) {
+      setResult({ kind: "err", msg: (e as { message?: string })?.message ?? String(e) });
+    }
+  }
+
   const mySecrets = saved.filter((p) => !market || p.market === market.address);
 
   return (
@@ -317,6 +341,16 @@ export default function Home() {
 
         {!market ? (
           <>
+            {decisions.map((d) => (
+              <DecisionPanel
+                key={d.address}
+                state={d}
+                canDecide={!!myWalletAccount}
+                busy={result.kind === "pending"}
+                onDecide={() => decide(d.address)}
+              />
+            ))}
+
             <div className={s.filters}>
               <span className={`${s.pill} ${s.pillOn}`}>All markets</span>
               <span className={s.pill}>Shipping</span>
