@@ -52,7 +52,18 @@ export const DoomMarketAddress = "0x0205a8ad149048619f6b8ee19968e119009848a7f664
 // Every deployed market, newest last. Each is a separate instance of the same
 // declared class — deploy more from /deploy and paste the address in here.
 export const DoomMarkets: string[] = [
+    // 1 — the sprint's own registration PR
     "0x0205a8ad149048619f6b8ee19968e119009848a7f6645d862e949bcf1ef432c4",
+    // 2 — shipping: this project's own delivery date
+    "0x05898fb214fb5c2c23f12601b8f4350612fc614642942ea80adb7145dba6ae48",
+    // 3 — governance: the PR unblocking the registry queue
+    "0x06e052635f96b98184cffa3a5d2e416ec0a3d288ac54a66b23a41e8c149b30b5",
+    // 4 — forecast: registry growth by the deadline
+    "0x04f8f4a1a90899b6b61b98cebc245fbb49a139a4be7448685593bb10be969d21",
+    // 5 — roadmap: a real Starknet release, resolving well after the sprint
+    "0x013c507ad43b4f2e61037cbd08ee3f15606d2dc538a17135b46c8c095415b0ab",
+    // 6 — treasury: a real Foundation decision
+    "0x073f3dddde000eeddfa0974385cecd36d91237c1efc5a6cab9a4039d543595db",
 ];
 export const DoomMarketClassHash = "0xa8aa0595ab9099a13208546a9910c9d525dc13d124114de9541b6d71adce1f";
 export const DoomMarketQuestion = "Will strk20-hackathon PR #100 merge before 2026-08-25 23:59 UTC?";
