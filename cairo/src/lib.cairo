@@ -7,6 +7,8 @@ pub mod echo_helper;
 pub mod doom_market;
 // v2: staking deadline + bonded optimistic resolution, no trusted admin.
 pub mod doom_market_v2;
+// futarchy: two conditional branches, the prices make the decision.
+pub mod doom_decision;
 
 // Test-only. Never deployed.
 pub mod mock_erc20;

@@ -217,6 +217,16 @@ export default function Home() {
         </div>
         <div className={s.navRight}>
           <span className={`${s.chip} ${s.chipDim}`}>Starknet mainnet</span>
+          {address && (
+            <span
+              className={s.chip}
+              title={address}
+              style={{ fontFamily: "ui-monospace, monospace", fontSize: 12.5, color: "#22c55e" }}
+            >
+              {address.slice(0, 6)}…{address.slice(-4)}
+            </span>
+          )}
+          <SelectWallet />
         </div>
       </nav>
 
