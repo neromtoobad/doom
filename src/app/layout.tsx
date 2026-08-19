@@ -1,9 +1,9 @@
 import type { Metadata } from 'next'
-import { Inter, Space_Mono } from 'next/font/google'
+import { Inter, Space_Mono, Unbounded } from 'next/font/google'
 import './globals.css'
 
-// Clean neutral grotesque for everything (matches the Uniswap reference); a mono
-// only for hex addresses / hashes.
+// Inter for body, a mono for hex, and Unbounded — a wide display face — for the
+// wordmark, questions and big numbers. That contrast is most of the personality.
 const inter = Inter({
   subsets: ['latin'],
   variable: '--font-body',
@@ -15,10 +15,21 @@ const spaceMono = Space_Mono({
   variable: '--font-mono-ui',
   display: 'swap',
 })
+const unbounded = Unbounded({
+  subsets: ['latin'],
+  weight: ['500', '700', '900'],
+  variable: '--font-display',
+  display: 'swap',
+})
 
 export const metadata: Metadata = {
-  title: 'Shielded STRK · WalletAccountV6',
-  description: 'Shield, unshield and privately move STRK on Starknet with WalletAccountV6',
+  title: 'Doom — private futarchy on Starknet',
+  description:
+    'The market is the vote. Decision markets with public prices and invisible voters, settling through the STRK20 privacy pool on Starknet mainnet.',
+  openGraph: {
+    title: 'Doom — private futarchy on Starknet',
+    description: 'Public prices. Invisible voters. The market is the vote.',
+  },
 }
 
 export default function RootLayout({
@@ -29,7 +40,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${inter.variable} ${spaceMono.variable}`}
+      className={`${inter.variable} ${spaceMono.variable} ${unbounded.variable}`}
       suppressHydrationWarning
     >
       <body>{children}</body>

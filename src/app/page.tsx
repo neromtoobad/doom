@@ -1,8 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import { num } from "starknet";
 import s from "./market.module.css";
+import markImg from "../../public/brand/mark-96.png";
 import SelectWallet from "./components/client/WalletHandle/SelectWallet";
 import { useStoreWallet } from "./components/Wallet/walletContext";
 import * as constants from "@/utils/constants";
@@ -30,10 +32,15 @@ type Result =
   | { kind: "ok"; msg: string; tx?: string }
   | { kind: "err"; msg: string };
 
-/** Semicircular chance dial. Green fills clockwise with the YES share. */
+/** Semicircular chance dial. Sweeps up from zero on mount, then tracks live. */
 function Gauge({ pct, size = 1 }: { pct: number; size?: number }) {
   const r = 62;
   const len = Math.PI * r;
+  const [drawn, setDrawn] = useState(0);
+  useEffect(() => {
+    const t = requestAnimationFrame(() => setDrawn(pct));
+    return () => cancelAnimationFrame(t);
+  }, [pct]);
   return (
     <div className={s.gauge} style={{ transform: `scale(${size})` }}>
       <svg width="148" height="92" viewBox="0 0 148 92" aria-hidden>
@@ -50,12 +57,69 @@ function Gauge({ pct, size = 1 }: { pct: number; size?: number }) {
           stroke="#22c55e"
           strokeWidth="11"
           strokeLinecap="round"
-          strokeDasharray={`${(pct / 100) * len} ${len}`}
+          strokeDasharray={`${(drawn / 100) * len} ${len}`}
+          style={{
+            transition: "stroke-dasharray 1.1s cubic-bezier(.22,1,.36,1)",
+            filter: "drop-shadow(0 0 6px rgba(34,197,94,.45))",
+          }}
         />
       </svg>
       <div className={s.gaugeVal}>
         <div className={s.gaugePct}>{pct}%</div>
         <div className={s.gaugeCap}>chance</div>
+      </div>
+    </div>
+  );
+}
+
+/** Numbers that roll to their value instead of appearing. */
+function CountUp({ value, decimals = 2, suffix = "" }: { value: number; decimals?: number; suffix?: string }) {
+  const [shown, setShown] = useState(0);
+  const prev = useRef(0);
+  useEffect(() => {
+    const from = prev.current;
+    prev.current = value;
+    if (from === value) return;
+    const t0 = performance.now();
+    const dur = 900;
+    let raf = 0;
+    const tick = (t: number) => {
+      const k = Math.min(1, (t - t0) / dur);
+      const e = 1 - Math.pow(1 - k, 3);
+      setShown(from + (value - from) * e);
+      if (k < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [value]);
+  return (
+    <>
+      {shown.toLocaleString(undefined, {
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals,
+      })}
+      {suffix}
+    </>
+  );
+}
+
+/** Live odds strip. Doubled content scrolls seamlessly; pausing on hover. */
+function Ticker({ items, onPick }: { items: MarketState[]; onPick: (a: string) => void }) {
+  if (items.length === 0) return null;
+  const cells = [...items, ...items];
+  return (
+    <div className={s.ticker} aria-hidden>
+      <div className={s.tickerTrack}>
+        {cells.map((m, i) => {
+          const pct = Math.round(m.yesShare * 100);
+          return (
+            <button key={i} className={s.tickerItem} onClick={() => onPick(m.address)} tabIndex={-1}>
+              <span className={pct >= 50 ? s.yes : s.no}>{pct}%</span>
+              <span className={s.tickerQ}>{m.question.replace(/\?$/, "")}</span>
+              <span className={s.tickerDot}>·</span>
+            </button>
+          );
+        })}
       </div>
     </div>
   );
@@ -210,8 +274,8 @@ export default function Home() {
       <nav className={s.nav}>
         <div className={s.navLeft}>
           <button className={s.brandBtn} onClick={() => selectMarket(null)}>
-            <span className={s.mark}>D</span>
-            <span className={s.wordmark}>Doom</span>
+            <Image src={markImg} alt="Doom" width={40} height={40} className={s.markImg} priority />
+            <span className={s.wordmark}>DOOM</span>
           </button>
           <span className={s.navTag}>the price is public, the voters are not</span>
         </div>
@@ -230,11 +294,15 @@ export default function Home() {
         </div>
       </nav>
 
+      <Ticker items={list} onPick={selectMarket} />
+
       <div className={s.shell}>
         <section className={s.stats}>
           <div>
             <div className={s.statLabel}>Total staked</div>
-            <div className={s.statValue}>{fmtStrk(totalStaked)} STRK</div>
+            <div className={s.statValue}>
+              <CountUp value={Number(totalStaked) / 1e18} /> STRK
+            </div>
           </div>
           <div>
             <div className={s.statLabel}>Open markets</div>
