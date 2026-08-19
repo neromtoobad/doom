@@ -33,3 +33,7 @@ next-env.d.ts
 /coverage
 /build
 .gstack/
+
+# cairo
+cairo/target/
+cairo/.snfoundry_cache/
