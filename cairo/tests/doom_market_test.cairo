@@ -270,3 +270,15 @@ fn constructor_stores_the_question_and_roles() {
     assert(market.get_token() == token.contract_address, 'token wrong');
     assert(!market.is_resolved(), 'should start unresolved');
 }
+
+/// Cross-check against starknet.js. The frontend computes the commitment client-side and
+/// the contract recomputes it on claim; if the two hash differently, every claim fails
+/// with POSITION_NOT_FOUND and the funds are unreachable. This pins the exact value
+/// produced by `hash.computePoseidonHashOnElements([TAG, 'alice'])` in the browser.
+#[test]
+fn commitment_matches_the_javascript_implementation() {
+    assert(
+        compute_commitment('alice') == 0x20f966fba4f27fff58e912c1b5dc2ff927640b6d2fd529dbf929d1398bf1b5c,
+        'js/cairo hash mismatch',
+    );
+}
