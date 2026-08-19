@@ -49,5 +49,10 @@ export const Strk20Networks: Record<number, string> = { 0: "MAINNET", 2: "SEPOLI
 // where positions are keyed by poseidon(tag, secret), so the contract never
 // learns who staked. See cairo/address.md.
 export const DoomMarketAddress = "0x0205a8ad149048619f6b8ee19968e119009848a7f6645d862e949bcf1ef432c4";
+// Every deployed market, newest last. Each is a separate instance of the same
+// declared class — deploy more from /deploy and paste the address in here.
+export const DoomMarkets: string[] = [
+    "0x0205a8ad149048619f6b8ee19968e119009848a7f6645d862e949bcf1ef432c4",
+];
 export const DoomMarketClassHash = "0xa8aa0595ab9099a13208546a9910c9d525dc13d124114de9541b6d71adce1f";
 export const DoomMarketQuestion = "Will strk20-hackathon PR #100 merge before 2026-08-25 23:59 UTC?";

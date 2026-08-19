@@ -17,8 +17,8 @@ import casm from "@/contracts/DoomMarket.casm.json";
 /** The STRK20 privacy pool on mainnet. Pinned into the contract at construction. */
 const POOL = "0x040337b1af3c663e86e333bab5a4b28da8d4652a15a69beee2b677776ffe812a";
 
-/** Fixed at deployment and unchangeable afterwards. */
-const QUESTION = "Will strk20-hackathon PR #100 merge before 2026-08-25 23:59 UTC?";
+/** Suggested wording. Fixed at deployment and unchangeable afterwards. */
+const DEFAULT_QUESTION = "Will strk20-hackathon PR #100 merge before 2026-08-25 23:59 UTC?";
 
 type Step = { label: string; value?: string; href?: string };
 
@@ -27,6 +27,7 @@ export default function DeployPage() {
   const address = useStoreWallet((s) => s.address);
   const chain = useStoreWallet((s) => s.chain);
 
+  const [question, setQuestion] = useState(DEFAULT_QUESTION);
   const [busy, setBusy] = useState(false);
   const [steps, setSteps] = useState<Step[]>([]);
   const [error, setError] = useState<string>("");
@@ -38,7 +39,7 @@ export default function DeployPage() {
   const expectedClassHash = hash.computeSierraContractClassHash(sierra as never);
 
   const constructorCalldata = () => {
-    const q = byteArray.byteArrayFromString(QUESTION);
+    const q = byteArray.byteArrayFromString(question);
     return [
       POOL,
       address, // resolver: the connected wallet, the only address that can settle
@@ -129,7 +130,7 @@ export default function DeployPage() {
         </p>
 
         <dl style={S.dl}>
-          <Row k="Question" v={QUESTION} />
+          <Row k="Question" v={question || "—"} />
           <Row k="Pool" v={POOL} mono />
           <Row k="Resolver" v={address || "— connect a wallet —"} mono />
           <Row k="Token" v={constants.addrSTRK} mono />
@@ -146,11 +147,38 @@ export default function DeployPage() {
           />
         </dl>
 
-        <div style={{ margin: "20px 0" }}>
+        <div style={{ margin: "20px 0 8px" }}>
+          <label style={S.dt} htmlFor="q">
+            Market question — fixed forever at deployment
+          </label>
+          <input
+            id="q"
+            value={question}
+            onChange={(e) => setQuestion(e.target.value)}
+            placeholder="Will we ship by Nov 1?"
+            style={{
+              width: "100%",
+              boxSizing: "border-box",
+              marginTop: 8,
+              padding: "13px 14px",
+              borderRadius: 10,
+              border: "1px solid #2c2c31",
+              background: "#0e0e10",
+              color: "#e8e8e8",
+              fontSize: 14,
+            }}
+          />
+          <p style={{ ...S.warn, marginTop: 8 }}>
+            It must be checkable by a stranger and resolve before you need the demo. The
+            resolver is whichever wallet is connected when you deploy.
+          </p>
+        </div>
+
+        <div style={{ margin: "12px 0 20px" }}>
           <SelectWallet />
         </div>
 
-        <button onClick={run} disabled={busy || !myWalletAccount} style={S.btn}>
+        <button onClick={run} disabled={busy || !myWalletAccount || !question.trim()} style={S.btn}>
           {busy ? "Working — check your wallet…" : "Declare + Deploy"}
         </button>
 

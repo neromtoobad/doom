@@ -11,7 +11,10 @@ import { hash, shortString, num, type ProviderInterface } from "starknet";
 import type { WALLET_API } from "@starknet-io/types-js";
 import * as constants from "@/utils/constants";
 
-export const MARKET = constants.DoomMarketAddress;
+/** Every deployed market. Each is its own instance of the same declared class. */
+export const MARKETS: string[] = constants.DoomMarkets;
+/** The first market, kept for the deploy tool and for single-market callers. */
+export const MARKET = constants.DoomMarkets[0];
 export const TOKEN = constants.addrSTRK;
 
 /** Matches DOOM_POSITION_TAG in cairo/src/doom_market.cairo. Domain separation. */
@@ -48,6 +51,7 @@ export function randomSecret(): string {
 }
 
 export type MarketState = {
+  address: string;
   question: string;
   potNo: bigint;
   potYes: bigint;
@@ -59,9 +63,12 @@ export type MarketState = {
   resolver: string;
 };
 
-export async function readMarket(provider: ProviderInterface): Promise<MarketState> {
+export async function readMarket(
+  provider: ProviderInterface,
+  address: string = MARKET,
+): Promise<MarketState> {
   const call = (entrypoint: string) =>
-    provider.callContract({ contractAddress: MARKET, entrypoint, calldata: [] });
+    provider.callContract({ contractAddress: address, entrypoint, calldata: [] });
 
   const [pots, resolvedRaw, winnerRaw, resolverRaw, questionRaw] = await Promise.all([
     call("get_pots"),
@@ -76,6 +83,7 @@ export async function readMarket(provider: ProviderInterface): Promise<MarketSta
   const total = potNo + potYes;
 
   return {
+    address,
     question: decodeByteArray(questionRaw as string[]),
     potNo,
     potYes,
@@ -102,17 +110,22 @@ function decodeByteArray(felts: string[]): string {
  * Stake. The pool withdraws to the market, then invokes it. No open note: the buy leg
  * returns an empty span because the funds stay in the market until settlement.
  */
-export function buyActions(amountWei: bigint, outcome: number, commitment: string) {
+export function buyActions(
+  amountWei: bigint,
+  outcome: number,
+  commitment: string,
+  market: string = MARKET,
+) {
   return [
     {
       type: "withdraw",
       token: TOKEN,
       amount: num.toHex(amountWei),
-      recipient: MARKET,
+      recipient: market,
     },
     {
       type: "invoke",
-      contract: MARKET,
+      contract: market,
       calldata: [OP_BUY, commitment, num.toHex(outcome), "0x0", "0x0"],
     },
   ] as WALLET_API.STRK20_ACTION[];
@@ -123,12 +136,12 @@ export function buyActions(amountWei: bigint, outcome: number, commitment: strin
  * substitutes ${openNoteIds[0]} during assembly — so that string must stay literal and
  * must not be hex-normalised.
  */
-export function claimActions(secret: string, recipient: string) {
+export function claimActions(secret: string, recipient: string, market: string = MARKET) {
   return [
     { type: "transfer", token: TOKEN, amount: "OPEN", recipient },
     {
       type: "invoke",
-      contract: MARKET,
+      contract: market,
       calldata: [OP_CLAIM, "0x0", "0x0", secret, "${openNoteIds[0]}"],
     },
   ] as WALLET_API.STRK20_ACTION[];
@@ -137,9 +150,10 @@ export function claimActions(secret: string, recipient: string) {
 // ── local secret vault ──────────────────────────────────────────────────────────
 // Convenience only. The secret is the position, so the UI also makes the user copy it.
 
-const KEY = `doom:${MARKET}:positions`;
+const KEY = "doom:positions";
 
 export type SavedPosition = {
+  market: string;
   secret: string;
   commitment: string;
   outcome: number;
