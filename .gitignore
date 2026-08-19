@@ -37,3 +37,6 @@ next-env.d.ts
 # cairo
 cairo/target/
 cairo/.snfoundry_cache/
+
+# static export
+/out/
