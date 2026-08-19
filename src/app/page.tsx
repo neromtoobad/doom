@@ -257,31 +257,6 @@ export default function MarketPage() {
               </div>
             </article>
 
-            <section className={s.void}>
-              <div className={s.voidHead}>
-                <span className={s.voidTitle}>Holders</span>
-                <span className={s.voidTag}>unavailable by design</span>
-              </div>
-              <p className={s.voidBody}>
-                Every other prediction market puts a leaderboard here. Doom cannot build one.{" "}
-                <strong>Positions are keyed by a secret, not an address</strong>, and the contract
-                is only ever called by the STRK20 privacy pool — so it never learns who staked,
-                even if it wanted to.
-              </p>
-              <div className={s.ghostRows}>
-                <div className={s.ghostRow}>—</div>
-                <div className={s.ghostRow}>—</div>
-                <div className={s.ghostRow}>—</div>
-              </div>
-            </section>
-
-            <p className={s.footNote}>
-              Draft contract, unaudited, written during an 18-day sprint. Stake small. Public: the
-              question, the odds, the totals, every transaction. Not public: who staked, how much
-              any individual staked, which side they took. The anonymity set is the STRK20
-              pool&apos;s, not Doom&apos;s alone, and timing correlation between shielding and
-              staking is a real leak this does not solve.
-            </p>
           </div>
 
           <aside>
@@ -434,6 +409,32 @@ export default function MarketPage() {
             )}
           </aside>
         </div>
+
+            <section className={s.void}>
+              <div className={s.voidHead}>
+                <span className={s.voidTitle}>Holders</span>
+                <span className={s.voidTag}>unavailable by design</span>
+              </div>
+              <p className={s.voidBody}>
+                Every other prediction market puts a leaderboard here. Doom cannot build one.{" "}
+                <strong>Positions are keyed by a secret, not an address</strong>, and the contract
+                is only ever called by the STRK20 privacy pool — so it never learns who staked,
+                even if it wanted to.
+              </p>
+              <div className={s.ghostRows}>
+                <div className={s.ghostRow}>—</div>
+                <div className={s.ghostRow}>—</div>
+                <div className={s.ghostRow}>—</div>
+              </div>
+            </section>
+
+            <p className={s.footNote}>
+              Draft contract, unaudited, written during an 18-day sprint. Stake small. Public: the
+              question, the odds, the totals, every transaction. Not public: who staked, how much
+              any individual staked, which side they took. The anonymity set is the STRK20
+              pool&apos;s, not Doom&apos;s alone, and timing correlation between shielding and
+              staking is a real leak this does not solve.
+            </p>
       </div>
     </main>
   );
