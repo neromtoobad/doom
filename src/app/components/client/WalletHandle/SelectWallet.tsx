@@ -53,7 +53,11 @@ export default function SelectWallet({ variant = "ctaBig" }: { variant?: "nav" |
   }, []);
 
   // Show every detected wallet except MetaMask (its Snap probing spams an unlock popup)
-  // and Braavos (excluded from this starter's picker).
+  // and Braavos. Braavos is NOT privacy-enabled: it cannot perform STRK20 actions, so
+  // offering it would connect fine and then fail on the first shield. Ready is the
+  // tested baseline for the Wallet API route.
+  // Proper fix, if time allows: detect STRK20 capability on the wallet rather than
+  // matching on brand name, per the STRK20 docs.
   const pickable = wallets.filter((w) => {
     const id = normalizeId(w.name);
     return !id.includes("metamask") && !id.includes("braavos");
