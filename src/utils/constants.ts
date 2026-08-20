@@ -52,10 +52,17 @@ export const DoomMarketAddress = "0x0205a8ad149048619f6b8ee19968e119009848a7f664
 // Every deployed market, newest last. Each is a separate instance of the same
 // declared class — deploy more from /deploy and paste the address in here.
 export const DoomMarkets: string[] = [
-    // ── share markets (DoomPredictionMarket): real prices on a curve ──
+    // ── crypto share markets, calibrated against live spot at deploy ──
+    "0x0754b7550d47441539fc2264e689d584f67e8667965240a98656230534cf4618", // BTC $80k · Sep 30
+    "0x07450bbf75708b40107ba4210d80c3c13fe6e284087ab3401d9d26fdb9424afa", // BTC $100k · Dec 31
+    "0x0734ffdb14dfe27a44ca3a4355a9cba2b522d888d6defc663617c0cfe6b4d0e8", // ETH $2.5k · Sep 30
+    "0x06e5598cb11349ebd2254510c6107f10b755c7e025faea349223faa1de2cded2", // ETH $3k · Dec 31
+    "0x02cf2324376fb1e01dfb9ea01438a794e7cf4b27505702cab88d4fe5d68f1296", // SOL $120 · Dec 31
+    "0x02b48d0ab591cee1e1ee3877f46a20d39159ab5ba2d525b3df0dddeb62c37eab", // STRK $0.05 · Dec 31
+    // ── the first two share markets ──
     "0x026e1e64b1ed70983ff96d5f8605c0d3ad2ca13e4746e02875b0fa608932aa6b", // demo video, closes Aug 29
     "0x00611045be3eb6172f9ca2603c1dfbdb1319151178c8aa8f990b02363f12730f", // BTC $150k, closes Dec 31
-    // ── the earlier parimutuel markets, still live and still settling ──
+    // ── earlier parimutuel markets, still live and still settling ──
     "0x0205a8ad149048619f6b8ee19968e119009848a7f6645d862e949bcf1ef432c4",
     "0x06e052635f96b98184cffa3a5d2e416ec0a3d288ac54a66b23a41e8c149b30b5",
     "0x04f8f4a1a90899b6b61b98cebc245fbb49a139a4be7448685593bb10be969d21",

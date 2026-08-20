@@ -36,3 +36,15 @@ declare tx : 0x1bece394cbebf4f7f5f27e149cc9a88f6847a16971d2e90884900a1daddc119
 Both seeded with 10 STRK of liquidity, both opening at 50c with reserves 10/10.
 Verified on chain: deployed class matches the tested build, questions decode back
 to the intended strings, and the liquidity provider is recorded.
+
+## Crypto share markets (mainnet)
+
+Calibrated against live spot at deploy: BTC $71.6k, ETH $2,275, SOL $88, STRK $0.0247.
+All six seeded with 3 STRK, opening at 50c, verified class + reserves on chain.
+
+0x0754b7550d47441539fc2264e689d584f67e8667965240a98656230534cf4618  BTC > $80,000   2026-09-30
+0x07450bbf75708b40107ba4210d80c3c13fe6e284087ab3401d9d26fdb9424afa  BTC > $100,000  2026-12-31
+0x0734ffdb14dfe27a44ca3a4355a9cba2b522d888d6defc663617c0cfe6b4d0e8  ETH > $2,500    2026-09-30
+0x06e5598cb11349ebd2254510c6107f10b755c7e025faea349223faa1de2cded2  ETH > $3,000    2026-12-31
+0x02cf2324376fb1e01dfb9ea01438a794e7cf4b27505702cab88d4fe5d68f1296  SOL > $120      2026-12-31
+0x02b48d0ab591cee1e1ee3877f46a20d39159ab5ba2d525b3df0dddeb62c37eab  STRK > $0.05    2026-12-31
