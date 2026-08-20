@@ -353,3 +353,20 @@
 @media (prefers-reduced-motion: reduce) {
   .page::before, .page::after, .tickerTrack, .statusDot { animation: none; }
 }
+
+/* ── saved positions picker (claim) ────────────────────────────────── */
+.posList { margin-top: 12px; display: grid; gap: 7px; }
+.posHead { font-size: 11.5px; color: var(--muted); margin-bottom: 3px; }
+.posRow {
+  display: grid; grid-template-columns: 46px 1fr auto; align-items: center; gap: 10px;
+  padding: 11px 13px; border-radius: 11px; cursor: pointer; text-align: left;
+  border: 1px solid var(--line); background: var(--surface2);
+  font-size: 12.5px; font-variant-numeric: tabular-nums; color: var(--text);
+  font-weight: 600; transition: border-color .15s;
+}
+.posRow:hover:not(:disabled) { border-color: #45454f; }
+.posWon { border-color: rgba(34,197,94,0.4); }
+.posLost { opacity: 0.45; cursor: not-allowed; }
+.posAmt { color: var(--muted); font-weight: 500; }
+.posPay { color: var(--yes); font-weight: 700; }
+.posLost .posPay { color: var(--muted); font-weight: 500; }

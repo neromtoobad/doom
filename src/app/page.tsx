@@ -523,13 +523,45 @@ export default function Home() {
                           {result.kind === "pending" ? "Working…" : "Claim payout"}
                         </button>
                         {mySecrets.length > 0 && (
-                          <button
-                            className={s.ghost}
-                            onClick={() => setClaimSecret(mySecrets[mySecrets.length - 1].secret)}
-                            disabled={result.kind === "pending"}
-                          >
-                            Use my last saved secret for this market
-                          </button>
+                          <div className={s.posList}>
+                            <div className={s.posHead}>
+                              Positions saved in this browser for this market
+                            </div>
+                            {mySecrets.map((p) => {
+                              const won =
+                                market.winningOutcome === OUTCOME_VOID ||
+                                p.outcome === market.winningOutcome;
+                              const side = p.outcome === OUTCOME_YES ? "YES" : "NO";
+                              const payout =
+                                market.winningOutcome === OUTCOME_VOID
+                                  ? BigInt(p.amount)
+                                  : won && market.total > 0n
+                                    ? (BigInt(p.amount) * market.total) /
+                                      (market.winningOutcome === OUTCOME_YES
+                                        ? market.potYes
+                                        : market.potNo)
+                                    : 0n;
+                              return (
+                                <button
+                                  key={p.commitment}
+                                  className={`${s.posRow} ${won ? s.posWon : s.posLost}`}
+                                  onClick={() => setClaimSecret(p.secret)}
+                                  disabled={!won || result.kind === "pending"}
+                                  title={won ? "Load this secret" : "This side lost"}
+                                >
+                                  <span className={p.outcome === OUTCOME_YES ? s.yes : s.no}>
+                                    {side}
+                                  </span>
+                                  <span className={s.posAmt}>
+                                    {fmtStrk(BigInt(p.amount))} STRK
+                                  </span>
+                                  <span className={s.posPay}>
+                                    {won ? `→ ${fmtStrk(payout)}` : "lost"}
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
                         )}
                         <p className={s.hint}>
                           Revealing the secret links a payout to a stake. It still links neither to
