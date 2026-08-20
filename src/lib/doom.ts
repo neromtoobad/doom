@@ -79,8 +79,10 @@ export async function readMarket(
   const call = (entrypoint: string) =>
     provider.callContract({ contractAddress: address, entrypoint, calldata: [] });
 
+  // get_pots exists only on the parimutuel generation. Share markets have reserves
+  // instead, so this must not be allowed to reject the whole read.
   const [pots, resolvedRaw, winnerRaw, questionRaw] = await Promise.all([
-    call("get_pots"),
+    call("get_pots").catch(() => ["0x0", "0x0"]),
     call("is_resolved"),
     call("get_winning_outcome"),
     call("get_question"),
@@ -104,6 +106,7 @@ export async function readMarket(
     call("get_volume").catch(() => null),
   ]);
   const isCpmm = priceRaw !== null;
+  const reserves = isCpmm ? await call("get_reserves").catch(() => null) : null;
 
   const priceYesBps = isCpmm
     ? Number(num.toBigInt(priceRaw[0]))
@@ -114,8 +117,8 @@ export async function readMarket(
   return {
     address,
     question: decodeByteArray(questionRaw as string[]),
-    potNo,
-    potYes,
+    potNo: reserves ? num.toBigInt(reserves[1]) : potNo,
+    potYes: reserves ? num.toBigInt(reserves[0]) : potYes,
     total,
     yesShare: priceYesBps / 10000,
     resolved: num.toBigInt(resolvedRaw[0]) === 1n,

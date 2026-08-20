@@ -57,7 +57,6 @@ export const DoomMarkets: string[] = [
     "0x00611045be3eb6172f9ca2603c1dfbdb1319151178c8aa8f990b02363f12730f", // BTC $150k, closes Dec 31
     // ── the earlier parimutuel markets, still live and still settling ──
     "0x0205a8ad149048619f6b8ee19968e119009848a7f6645d862e949bcf1ef432c4",
-    "0x05898fb214fb5c2c23f12601b8f4350612fc614642942ea80adb7145dba6ae48",
     "0x06e052635f96b98184cffa3a5d2e416ec0a3d288ac54a66b23a41e8c149b30b5",
     "0x04f8f4a1a90899b6b61b98cebc245fbb49a139a4be7448685593bb10be969d21",
     "0x013c507ad43b4f2e61037cbd08ee3f15606d2dc538a17135b46c8c095415b0ab",
