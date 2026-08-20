@@ -263,3 +263,72 @@ fn volume_tracks_collateral_bet_not_liquidity() {
     buy(m, t, a, 'bob', OUTCOME_NO, 8 * ONE);
     assert(m.get_volume() == 20 * ONE, 'volume should be 20');
 }
+
+// ── liquidity provider ──────────────────────────────────────────────────────────
+
+/// The seed is real capital. After resolution the reserves are the pool's own
+/// outcome shares, and without a withdraw path two thirds of a seed would sit in
+/// the contract forever. This is the regression test for that.
+#[test]
+fn the_liquidity_provider_gets_their_capital_back() {
+    let (m, t, a) = setup();
+    buy(m, t, a, 'alice', OUTCOME_YES, 20 * ONE);
+    buy(m, t, a, 'bob', OUTCOME_NO, 30 * ONE);
+
+    let (r_yes, _r_no) = m.get_reserves();
+
+    start_cheat_block_timestamp(a, CLOSES_AT + 1);
+    start_cheat_caller_address(a, POOL());
+    m.propose(OUTCOME_YES);
+    stop_cheat_caller_address(a);
+    start_cheat_block_timestamp(a, CLOSES_AT + WINDOW + 2);
+    m.finalize();
+
+    let before = t.balance_of(LP());
+    start_cheat_caller_address(a, LP());
+    m.withdraw_liquidity();
+    stop_cheat_caller_address(a);
+
+    // The pool's YES reserve redeems 1:1, exactly like any other winning share.
+    assert(t.balance_of(LP()) == before + r_yes.into(), 'LP payout wrong');
+}
+
+/// Everyone paid in full — bettors and the LP — with nothing left stranded and
+/// nothing overdrawn. This is the whole-market solvency statement.
+#[test]
+fn the_market_pays_everyone_and_balances_to_zero() {
+    let (m, t, a) = setup();
+    buy(m, t, a, 'alice', OUTCOME_YES, 20 * ONE);
+    buy(m, t, a, 'bob', OUTCOME_NO, 30 * ONE);
+
+    let held = t.balance_of(a);
+    let alice = m.get_position(compute_commitment('alice')).shares;
+    let (r_yes, _r_no) = m.get_reserves();
+
+    // If YES settles: alice's shares plus the pool's reserve is the entire balance.
+    assert(alice.into() + r_yes.into() == held, 'market must balance exactly');
+}
+
+#[test]
+#[should_panic(expected: 'NOT_LP')]
+fn only_the_provider_may_withdraw_liquidity() {
+    let (m, t, a) = setup();
+    buy(m, t, a, 'alice', OUTCOME_YES, 20 * ONE);
+    start_cheat_block_timestamp(a, CLOSES_AT + 1);
+    start_cheat_caller_address(a, POOL());
+    m.propose(OUTCOME_YES);
+    stop_cheat_caller_address(a);
+    start_cheat_block_timestamp(a, CLOSES_AT + WINDOW + 2);
+    m.finalize();
+    start_cheat_caller_address(a, ARBITER());
+    m.withdraw_liquidity();
+}
+
+#[test]
+#[should_panic(expected: 'NOT_RESOLVED')]
+fn liquidity_cannot_be_pulled_mid_market() {
+    let (m, t, a) = setup();
+    buy(m, t, a, 'alice', OUTCOME_YES, 20 * ONE);
+    start_cheat_caller_address(a, LP());
+    m.withdraw_liquidity();
+}

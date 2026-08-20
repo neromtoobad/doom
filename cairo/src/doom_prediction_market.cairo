@@ -82,6 +82,11 @@ pub trait IDoomPredictionMarket<TState> {
     /// collateral they post becomes the initial liquidity on both sides.
     fn add_liquidity(ref self: TState, amount: u128);
 
+    /// After resolution, the liquidity provider redeems the shares still sitting in
+    /// the market maker. Without this the seed is stranded: the pool's own winning
+    /// shares are real collateral that nobody could ever claim.
+    fn withdraw_liquidity(ref self: TState);
+
     /// Called by the privacy pool via `selector!("privacy_invoke")`.
     ///
     /// **Buy** — the pool has already sent the stake here. Collateral is measured as
@@ -118,6 +123,7 @@ pub trait IDoomPredictionMarket<TState> {
     fn get_arbiter(self: @TState) -> ContractAddress;
     fn get_closes_at(self: @TState) -> u64;
     fn get_bond(self: @TState) -> u128;
+    fn get_liquidity_provider(self: @TState) -> ContractAddress;
     fn get_proposal(self: @TState) -> (u8, u64, ContractAddress, ContractAddress, u64);
 }
 
@@ -163,6 +169,8 @@ pub mod DoomPredictionMarket {
         pub const NO_LIQUIDITY: felt252 = 'NO_LIQUIDITY';
         pub const ALREADY_SEEDED: felt252 = 'ALREADY_SEEDED';
         pub const ZERO_SHARES_OUT: felt252 = 'ZERO_SHARES_OUT';
+        pub const NOT_LP: felt252 = 'NOT_LP';
+        pub const LP_ALREADY_OUT: felt252 = 'LP_ALREADY_OUT';
     }
 
     #[storage]
@@ -185,6 +193,10 @@ pub mod DoomPredictionMarket {
         /// Everything this contract believes it holds: liquidity, bets and live bonds.
         accounted: u128,
         seeded: bool,
+        /// Whoever seeded the market maker, and whether they have redeemed.
+        lp: ContractAddress,
+        lp_seed: u128,
+        lp_withdrawn: bool,
         // ── settlement ──
         resolved: bool,
         winning_outcome: u8,
@@ -199,6 +211,7 @@ pub mod DoomPredictionMarket {
     #[derive(Drop, starknet::Event)]
     pub enum Event {
         LiquidityAdded: LiquidityAdded,
+        LiquidityWithdrawn: LiquidityWithdrawn,
         Bought: Bought,
         Proposed: Proposed,
         Disputed: Disputed,
@@ -208,6 +221,13 @@ pub mod DoomPredictionMarket {
 
     #[derive(Drop, starknet::Event)]
     pub struct LiquidityAdded {
+        #[key]
+        pub provider: ContractAddress,
+        pub amount: u128,
+    }
+
+    #[derive(Drop, starknet::Event)]
+    pub struct LiquidityWithdrawn {
         #[key]
         pub provider: ContractAddress,
         pub amount: u128,
@@ -295,7 +315,32 @@ pub mod DoomPredictionMarket {
             self.r_no.write(amount);
             self.accounted.write(self.accounted.read() + amount);
             self.seeded.write(true);
+            self.lp.write(who);
+            self.lp_seed.write(amount);
             self.emit(LiquidityAdded { provider: who, amount });
+        }
+
+        fn withdraw_liquidity(ref self: ContractState) {
+            assert(self.resolved.read(), errors::NOT_RESOLVED);
+            let who = get_caller_address();
+            assert(who == self.lp.read(), errors::NOT_LP);
+            assert(!self.lp_withdrawn.read(), errors::LP_ALREADY_OUT);
+
+            let winner = self.winning_outcome.read();
+            // On a settled market the reserves are the pool's own outcome shares, and
+            // a winning share is worth one collateral. On a void the seed comes back
+            // untouched, because every bettor is refunded their cost instead.
+            let owed = if winner == OUTCOME_VOID {
+                self.lp_seed.read()
+            } else if winner == OUTCOME_YES {
+                self.r_yes.read()
+            } else {
+                self.r_no.read()
+            };
+
+            self.lp_withdrawn.write(true);
+            self.push(who, owed);
+            self.emit(LiquidityWithdrawn { provider: who, amount: owed });
         }
 
         fn privacy_invoke(
@@ -430,6 +475,9 @@ pub mod DoomPredictionMarket {
         }
         fn get_bond(self: @ContractState) -> u128 {
             self.bond.read()
+        }
+        fn get_liquidity_provider(self: @ContractState) -> ContractAddress {
+            self.lp.read()
         }
         fn get_proposal(self: @ContractState) -> (u8, u64, ContractAddress, ContractAddress, u64) {
             (
