@@ -132,6 +132,81 @@ function Ticker({ items, onPick }: { items: MarketState[]; onPick: (a: string) =
   );
 }
 
+/** "closes in 9d" / "closed" — markets without a deadline just say nothing. */
+function closesIn(m: MarketState): string {
+  if (m.resolved) return "settled";
+  if (m.closesAt === null) return "holders hidden";
+  const ms = m.closesAt * 1000 - Date.now();
+  if (ms <= 0) return "closed";
+  const d = Math.floor(ms / 864e5);
+  if (d >= 1) return `closes in ${d}d`;
+  const h = Math.floor(ms / 36e5);
+  return h >= 1 ? `closes in ${h}h` : "closes within the hour";
+}
+
+/**
+ * Your bets, reconstructed from the secrets in this browser. The contract cannot
+ * tell you what you hold — it does not know who you are — so this is the only
+ * place a position can be listed, and it is local by necessity, not by choice.
+ */
+function Portfolio({
+  saved,
+  markets,
+  onOpen,
+}: {
+  saved: SavedPosition[];
+  markets: Record<string, MarketState>;
+  onOpen: (a: string) => void;
+}) {
+  if (saved.length === 0) {
+    return (
+      <div className={s.portfolio}>
+        <div className={s.portfolioHead}>My bets</div>
+        <p className={s.portfolioEmpty}>
+          No bets from this browser yet. Positions are keyed by a secret, so they live
+          here and nowhere else — not even the contract can list them for you.
+        </p>
+      </div>
+    );
+  }
+  const rows = [...saved].reverse();
+  return (
+    <div className={s.portfolio}>
+      <div className={s.portfolioHead}>
+        My bets<span className={s.portfolioCount}>{saved.length}</span>
+      </div>
+      <div className={s.posList}>
+        {rows.map((p, i) => {
+          const m = markets[p.market];
+          const won = m?.resolved && m.winningOutcome === p.outcome;
+          const lost = m?.resolved && m.winningOutcome !== p.outcome && m.winningOutcome !== 2;
+          const shares = p.shares ? BigInt(p.shares) : null;
+          return (
+            <button key={i} className={s.posRow} onClick={() => onOpen(p.market)}>
+              <span className={s.posSide}>
+                <span className={p.outcome === OUTCOME_YES ? s.yes : s.no}>
+                  {p.outcome === OUTCOME_YES ? "YES" : "NO"}
+                </span>
+              </span>
+              <span className={s.posQ}>{m?.question ?? p.market.slice(0, 18) + "…"}</span>
+              <span className={s.posAmt}>
+                {shares ? `${fmtStrk(shares)} shares` : `${fmtStrk(BigInt(p.amount))} STRK`}
+              </span>
+              <span className={won ? s.posWon : lost ? s.posLost : s.posOpen}>
+                {won ? "claimable" : lost ? "lost" : m?.resolved ? "void" : "open"}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      <p className={s.portfolioNote}>
+        These secrets exist only in this browser. Clear your site data and the bets
+        become unreachable by anyone, including us. Copy them somewhere safe.
+      </p>
+    </div>
+  );
+}
+
 export default function Home() {
   const myWalletAccount = useStoreWallet((st) => st.myWalletAccount);
   const address = useStoreWallet((st) => st.address);
@@ -146,6 +221,9 @@ export default function Home() {
   const [saved, setSaved] = useState<SavedPosition[]>([]);
   const [decisions, setDecisions] = useState<DecisionState[]>([]);
   const [quote, setQuote] = useState<bigint | null>(null);
+  const [filter, setFilter] = useState<"all" | "crypto" | "starknet" | "closing">("all");
+  const [sort, setSort] = useState<"volume" | "closing" | "new">("volume");
+  const [showPortfolio, setShowPortfolio] = useState(false);
 
   const provider = constants.myFrontendProviders[0]; // mainnet
 
@@ -181,9 +259,30 @@ export default function Home() {
     if (h && MARKETS.includes(h)) setSelected(h);
   }, []);
 
-  const list = MARKETS.map((a) => markets[a]).filter(Boolean) as MarketState[];
-  const open = list.filter((m) => !m.resolved).length;
-  const totalStaked = list.reduce((acc, m) => acc + m.total, 0n);
+  const all = MARKETS.map((a) => markets[a]).filter(Boolean) as MarketState[];
+
+  const CRYPTO = /\b(BTC|ETH|SOL|XRP|DOGE)\b/;
+  const STARKNET = /\b(STRK|Starknet|strk20)\b/i;
+  const soon = (m: MarketState) =>
+    m.closesAt !== null && m.closesAt * 1000 - Date.now() < 14 * 864e5;
+
+  const list = all
+    .filter((m) =>
+      filter === "all"
+        ? true
+        : filter === "crypto"
+          ? CRYPTO.test(m.question)
+          : filter === "starknet"
+            ? STARKNET.test(m.question)
+            : soon(m),
+    )
+    .sort((a, b) => {
+      if (sort === "volume") return a.volume > b.volume ? -1 : a.volume < b.volume ? 1 : 0;
+      if (sort === "closing") return (a.closesAt ?? 9e9) - (b.closesAt ?? 9e9);
+      return 0;
+    });
+  const open = all.filter((m) => !m.resolved).length;
+  const totalStaked = all.reduce((acc, m) => acc + m.volume, 0n);
 
   const market = selected ? markets[selected] : null;
   const settled = market?.resolved ?? false;
@@ -347,7 +446,7 @@ export default function Home() {
         </div>
       </nav>
 
-      <Ticker items={list} onPick={selectMarket} />
+      <Ticker items={all} onPick={selectMarket} />
 
       <div className={s.shell}>
         <section className={s.stats}>
@@ -381,15 +480,42 @@ export default function Home() {
             ))}
 
             <div className={s.filters}>
-              <span className={`${s.pill} ${s.pillOn}`}>All markets</span>
-              <span className={s.pill}>Shipping</span>
-              <span className={s.pill}>Treasury</span>
-              <span className={s.pill}>Grants</span>
+              {([
+                ["all", "All markets"],
+                ["crypto", "Crypto"],
+                ["starknet", "Starknet"],
+                ["closing", "Closing soon"],
+              ] as const).map(([k, label]) => (
+                <button
+                  key={k}
+                  className={`${s.pill} ${filter === k ? s.pillOn : ""}`}
+                  onClick={() => setFilter(k)}
+                >
+                  {label}
+                </button>
+              ))}
               <span className={s.filterSpacer} />
-              <span className={s.filterNote}>
-                {list.length} market{list.length === 1 ? "" : "s"} · odds public, bettors private
-              </span>
+              <select
+                className={s.sort}
+                value={sort}
+                onChange={(e) => setSort(e.target.value as typeof sort)}
+                aria-label="Sort markets"
+              >
+                <option value="volume">Most traded</option>
+                <option value="closing">Closing soonest</option>
+                <option value="new">Newest</option>
+              </select>
+              <button
+                className={`${s.pill} ${showPortfolio ? s.pillOn : ""}`}
+                onClick={() => setShowPortfolio((v) => !v)}
+              >
+                My bets{saved.length > 0 ? ` (${saved.length})` : ""}
+              </button>
             </div>
+
+            {showPortfolio && (
+              <Portfolio saved={saved} markets={markets} onOpen={selectMarket} />
+            )}
 
             <div className={s.board}>
               {list.length === 0 && <div className={s.empty}>Reading markets from mainnet…</div>}
@@ -425,7 +551,7 @@ export default function Home() {
                     </div>
                     <div className={s.tileFoot}>
                       <span>{fmtStrk(m.volume)} STRK volume</span>
-                      <span className={s.tileFootDim}>holders hidden</span>
+                      <span className={s.tileFootDim}>{closesIn(m)}</span>
                     </div>
                   </button>
                 );

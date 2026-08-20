@@ -394,3 +394,50 @@
   color: var(--yes); font-weight: 700; font-variant-numeric: tabular-nums;
   font-family: var(--font-display), sans-serif; font-size: 14px;
 }
+
+/* ── sort control ──────────────────────────────────────────────────── */
+.sort {
+  padding: 10px 14px; border-radius: 999px; font-size: 13px; font-weight: 600;
+  border: 1px solid var(--line); background: var(--surface2); color: var(--muted);
+  cursor: pointer; font-family: inherit;
+}
+.sort:focus { outline: none; border-color: #3a3a44; }
+
+/* ── portfolio ─────────────────────────────────────────────────────── */
+.portfolio {
+  border-radius: 20px; border: 1px solid var(--line); background: var(--surface);
+  padding: 22px 24px; margin-bottom: 26px;
+}
+.portfolioHead {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 16px;
+  font-family: var(--font-display), sans-serif; font-size: 15px; font-weight: 700;
+}
+.portfolioCount {
+  font-size: 11px; font-weight: 700; color: #140b07; background: var(--accent);
+  padding: 3px 8px; border-radius: 999px; font-family: var(--font-body), sans-serif;
+}
+.portfolioEmpty, .portfolioNote {
+  font-size: 12.5px; line-height: 1.65; color: var(--muted); margin: 0;
+}
+.portfolioNote { margin-top: 14px; }
+.posList { display: grid; gap: 8px; }
+.posRow {
+  display: grid; grid-template-columns: 52px 1fr auto auto; gap: 14px;
+  align-items: center; text-align: left; cursor: pointer;
+  padding: 12px 14px; border-radius: 12px;
+  border: 1px solid var(--line); background: var(--surface2); color: inherit;
+  transition: border-color .15s;
+}
+.posRow:hover { border-color: #3a3a44; }
+@media (max-width: 640px) {
+  .posRow { grid-template-columns: 46px 1fr; row-gap: 6px; }
+}
+.posSide { font-size: 11.5px; font-weight: 800; letter-spacing: 0.06em; }
+.posQ {
+  font-size: 13px; color: var(--text);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.posAmt { font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.posWon { font-size: 11px; font-weight: 700; color: var(--yes); }
+.posLost { font-size: 11px; font-weight: 700; color: var(--muted); }
+.posOpen { font-size: 11px; font-weight: 700; color: var(--accent); }
