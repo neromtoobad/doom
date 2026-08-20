@@ -237,7 +237,7 @@ export default function Home() {
       setSaved(loadPositions());
       setResult({ kind: "pending", msg: "Waiting for confirmation…" });
       await provider.waitForTransaction(tx, { retries: 400, retryInterval: 3000 });
-      setResult({ kind: "ok", msg: "Stake placed.", tx });
+      setResult({ kind: "ok", msg: "Bet placed.", tx });
       refresh();
     } catch (e: unknown) {
       setResult({ kind: "err", msg: (e as { message?: string })?.message ?? String(e) });
@@ -301,7 +301,7 @@ export default function Home() {
             <Image src={markImg} alt="Doom" width={40} height={40} className={s.markImg} priority />
             <span className={s.wordmark}>DOOM</span>
           </button>
-          <span className={s.navTag}>the price is public, the voters are not</span>
+          <span className={s.navTag}>visible odds, invisible bettors</span>
         </div>
         <div className={s.navRight}>
           <span className={`${s.chip} ${s.chipDim}`}>Starknet mainnet</span>
@@ -323,7 +323,7 @@ export default function Home() {
       <div className={s.shell}>
         <section className={s.stats}>
           <div>
-            <div className={s.statLabel}>Total staked</div>
+            <div className={s.statLabel}>Total volume</div>
             <div className={s.statValue}>
               <CountUp value={Number(totalStaked) / 1e18} /> STRK
             </div>
@@ -333,7 +333,7 @@ export default function Home() {
             <div className={s.statValue}>{open}</div>
           </div>
           <div>
-            <div className={s.statLabel}>Participants known</div>
+            <div className={s.statLabel}>Bettors identifiable</div>
             <div className={`${s.statValue} ${s.statHidden}`}>0</div>
             <div className={s.statNote}>and that is the point</div>
           </div>
@@ -358,7 +358,7 @@ export default function Home() {
               <span className={s.pill}>Grants</span>
               <span className={s.filterSpacer} />
               <span className={s.filterNote}>
-                {list.length} market{list.length === 1 ? "" : "s"} · decisions, not bets
+                {list.length} market{list.length === 1 ? "" : "s"} · odds public, bettors private
               </span>
             </div>
 
@@ -391,7 +391,7 @@ export default function Home() {
                       </span>
                     </div>
                     <div className={s.tileFoot}>
-                      <span>{fmtStrk(m.total)} STRK staked</span>
+                      <span>{fmtStrk(m.total)} STRK volume</span>
                       <span className={s.tileFootDim}>holders hidden</span>
                     </div>
                   </button>
@@ -493,10 +493,10 @@ export default function Home() {
                           onClick={stake}
                           disabled={!myWalletAccount || result.kind === "pending"}
                         >
-                          {result.kind === "pending" ? "Working…" : "Stake privately"}
+                          {result.kind === "pending" ? "Working…" : "Bet privately"}
                         </button>
                         <p className={s.hint}>
-                          Shield STRK first — a stake spends your shielded balance, not your public
+                          Shield STRK first — a bet spends your shielded balance, not your public
                           one. Two wallet prompts: the pool withdraws to the market, then invokes
                           it.
                         </p>
@@ -564,7 +564,7 @@ export default function Home() {
                           </div>
                         )}
                         <p className={s.hint}>
-                          Revealing the secret links a payout to a stake. It still links neither to
+                          Revealing the secret links a payout to a bet. It still links neither to
                           you.
                         </p>
                       </>
@@ -576,11 +576,11 @@ export default function Home() {
 
                     {freshSecret && (
                       <div className={s.secret}>
-                        <div className={s.secretTitle}>Save this. It is your position.</div>
+                        <div className={s.secretTitle}>Save this. It is your bet.</div>
                         <div className={s.secretVal}>{freshSecret}</div>
                         <p className={s.secretWarn}>
                           Nobody can recover it — not us, not the contract, not StarkWare. Lose it
-                          and the stake is unreachable forever. It is mirrored into this browser,
+                          and the bet is unreachable forever. It is mirrored into this browser,
                           but that is convenience, not a backup.
                         </p>
                       </div>
@@ -640,14 +640,15 @@ export default function Home() {
 
         <section className={s.void}>
           <div className={s.voidHead}>
-            <span className={s.voidTitle}>Holders</span>
+            <span className={s.voidTitle}>Top bettors</span>
             <span className={s.voidTag}>unavailable by design</span>
           </div>
           <p className={s.voidBody}>
-            Every other prediction market puts a leaderboard here. Doom cannot build one.{" "}
-            <strong>Positions are keyed by a secret, not an address</strong>, and the contract is
-            only ever called by the STRK20 privacy pool — so it never learns who staked, even if it
-            wanted to.
+            Polymarket ranks its whales here, and that leaderboard is exactly what causes
+            herding, copy-betting and pressure on bettors. Doom cannot build one:{" "}
+            <strong>positions key off a secret, not an address</strong>, every pool transaction
+            is relayed, and no wallet-level history accumulates to profile. The odds above are
+            fully public — that is what keeps the market accurate.
           </p>
           <div className={s.ghostRows}>
             <div className={s.ghostRow}>—</div>
@@ -657,11 +658,11 @@ export default function Home() {
         </section>
 
         <p className={s.footNote}>
-          Draft contract, unaudited, written during an 18-day sprint. Stake small. Public: the
-          question, the odds, the totals, every transaction. Not public: who staked, how much any
-          individual staked, which side they took. The anonymity set is the STRK20 pool&apos;s, not
-          Doom&apos;s alone, and timing correlation between shielding and staking is a real leak
-          this does not solve.
+          Draft contract, unaudited, written during an 18-day sprint — bet small. Public by
+          design: the question, the odds, every bet size, the resolution. That visibility is what
+          makes the odds accurate. Hidden: who bet, and any cross-market profile of them. Claiming
+          does reveal the secret, so a payout links back to its bet — but never to a person. The
+          anonymity set is the STRK20 pool&apos;s, not Doom&apos;s alone.
         </p>
       </div>
     </main>

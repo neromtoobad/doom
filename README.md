@@ -1,83 +1,110 @@
 # Doom
 
-**Private futarchy on Starknet. The market is the vote — public prices, invisible voters.**
+**A private prediction market on Starknet. Visible odds, invisible bettors.**
 
-Built on [STRK20](https://strk20.starknet.io), the Starknet privacy pool, for the Private Sprint.
+Bet sizes and odds stay fully public, so the information aggregation works. Who is
+betting is hidden, so the identity-based manipulation that shapes Polymarket does not
+happen. Built on [STRK20](https://strk20.starknet.io), the Starknet privacy pool, and
+live on mainnet.
+
+This is [RFP-07](https://github.com/starkience/strk20-hackathon/blob/main/IDEAS.md) —
+*"Prediction markets with visible odds and invisible bettors"* — plus a governance
+layer that the same primitive makes possible.
 
 ---
 
-## The problem, and why it is timely
+## Why anonymous betting produces better forecasts
 
-Futarchy — govern by decision markets instead of token votes — stopped being a thought
-experiment this year. MetaDAO runs it in production on Solana; Sanctum's first decision
-market drew 200+ trades in three hours; Optimism ran a 500k-OP futarchy experiment.
+Polymarket's accuracy comes from visible bet flow driving accurate odds. The same
+visibility creates whale tracking, herding, and pressure on bettors. Three things
+follow, and each is a market that cannot exist today:
 
-And every one of those implementations shares the same documented failure mode:
-**they are fully transparent.** Whales get watched and copied. Insiders get pressured
-about their positions. Betting against your own leadership is career risk. The market
-stops aggregating information and starts performing politics — which is the exact
-disease futarchy was invented to cure.
+- **Institutional forecasting.** Corporations want internal markets on project
+  completion and strategic decisions, but positions become political. An executive
+  betting against their own division's timeline is a career risk.
+- **Political and sensitive markets.** Visible large positions create narratives that
+  influence the outcome they are trying to measure.
+- **Professional edge.** Wallet-level history lets observers profile hit rate, sector
+  specialisation and holding patterns, so any edge gets copied.
 
-Transparency is not incidental to that failure. It is the cause.
+Doom removes the attribution while keeping every number that makes the market work.
 
-## What Doom is
+## Hidden vs visible
 
-The first private futarchy implementation. Three Cairo contracts, live on Starknet
-mainnet, settling through the STRK20 privacy pool:
+| Element | Hidden | Visible |
+|---|---|---|
+| Bettor identity | **Yes** — every pool transaction is relayed, so the on-chain sender is the relayer's account, never yours | |
+| Bet amounts | | **Yes** — this is what drives accurate odds |
+| Current odds, per-outcome volume | | **Yes** — read straight off the contract |
+| Resolution | | **Yes** — bond, dispute and outcome are all public |
+| Bettor's cross-market profile | **Yes** — positions key off a Poseidon commitment, so no wallet-level history accumulates | |
 
-| contract | what it does |
+**The honest limitation:** claiming reveals the secret in public calldata, so a payout
+can be linked back to the bet that earned it. It still links neither to a person.
+Timing correlation between shielding and betting is a real side channel this does not
+solve. The anonymity set is the STRK20 pool's, not Doom's alone.
+
+## The contracts
+
+| contract | role |
 |---|---|
-| `DoomMarketV2` | A conditional market as a STRK20 anonymizer. Stakes are shielded notes keyed by `poseidon(tag, secret)` — the contract is only ever called by the pool and never learns an address. Hard staking deadline. Bonded optimistic settlement: anyone proposes an outcome with a bond, anyone disputes by matching it, an arbiter rules only on contested markets and the wrong side forfeits its bond. No admin anywhere on the happy path. |
-| `DoomDecision` | The futarchy layer. Wraps two conditional branches — *"if we adopt, will the metric be met?"* / *"if we reject, will it?"* — and at close, `decide()` (callable by anyone) records whichever branch priced success higher as the decision. Ties favor the status quo. The losing branch voids and refunds every stake, the standard conditional-market rule. The `Decided` event is a governance act with no authorized signer in it: a pure function of two market prices. |
-| `StrkInvokeHelper` | The upstream echo reference, kept verbatim for provenance. |
+| **`DoomMarketV2`** | The prediction market, implemented as a STRK20 anonymizer. Per-question state: outcomes, `closes_at` deadline, per-outcome volume. `privacy_invoke` handles bet and claim. Bets arrive as pool withdrawals and are measured by balance delta, never trusted from calldata. Winners claim parimutuel payouts straight back into shielded notes. |
+| **`DoomDecision`** | The governance layer. Two conditional markets — *"if we adopt, will the metric be met?"* / *"if we reject, will it?"* — and `decide()`, callable by anyone, records whichever priced success higher. The losing branch voids and refunds. |
+| `StrkInvokeHelper` | Upstream echo reference, kept verbatim for provenance. |
+
+### Resolution without an administrator
+
+The RFP allows a designated resolver. Doom goes further, because a market whose
+settlement is one trusted address invites exactly the manipulation the privacy is
+meant to remove:
+
+```
+close  →  anyone posts a bond and proposes an outcome
+       →  anyone may dispute by matching the bond
+       →  unchallenged: finalises, bond returns
+       →  disputed:    escalates to an arbiter who can only ever
+                       touch a contested market; the wrong side
+                       forfeits its bond to the right one
+```
+
+`the_arbiter_cannot_touch_an_uncontested_market` is a test, not a promise.
+
+**Not yet built:** Pragma oracle binding for price-resolved markets. Doom currently
+covers the non-price path only.
+
+## Governance, as an extension
+
+Futarchy — decide by market instead of by vote — is live this year on Solana via
+MetaDAO, and Optimism ran a 500k-OP experiment. Every implementation is fully
+transparent, and the documented failure mode is precisely whale-watching and insider
+pressure. `DoomDecision` is the same idea over anonymous markets: the price is public,
+the voters are not, and the `Decided` event has no authorized signer in it.
 
 ```
         "Should the DAO fund proposal X?"
                      │
         ┌────────────┴────────────┐
-   ADOPT branch              REJECT branch          each an anonymizer:
-   "if adopted, will         "if rejected, will     shield → stake against
-    the metric be met?"       the metric be met?"   a secret, not an address
+   ADOPT branch              REJECT branch
+   "if adopted, will         "if rejected, will
+    the metric be met?"       the metric be met?"
         │                        │
         └───────── decide() ─────┘
-                     │
-        higher YES-share wins → Decided event
-        losing branch voids → everyone refunded
+          higher YES-share wins
+          losing branch voids → refunded
 ```
-
-## Why privacy is load-bearing, not decoration
-
-An anonymous decision market is the only version that produces an honest number.
-Nobody can copy the whale, because nobody can find the whale. Nobody can retaliate
-against the engineer who priced the launch date as a lie, because the position is a
-Poseidon commitment, not a name. The price is public and verifiable by anyone; the
-voters are not, by construction.
-
-## What is private, and what is not — stated precisely
-
-| Public | Private |
-|---|---|
-| the question, the odds, totals, every tx | **who** staked |
-| stake amounts (the pool's withdraw leg is a plain transfer) | which person took which side |
-| the stake↔claim link (claiming reveals the secret) | any address behind a position |
-| decisions, proposals, disputes, bonds | — |
-
-The anonymity set is the STRK20 pool's, not Doom's alone. Timing correlation between
-a shield and a stake is a real leak this does not solve. We would rather under-claim
-than over-claim.
 
 ## Live on mainnet
 
 | | |
 |---|---|
 | STRK20 pool | `0x040337b1af3c663e86e333bab5a4b28da8d4652a15a69beee2b677776ffe812a` |
-| Markets | six deployed instances — see [`cairo/address.md`](cairo/address.md) and [`strk20.json`](strk20.json) |
+| Markets | six deployed — [`cairo/address.md`](cairo/address.md) |
 | Demo | https://neromtoobad.github.io/doom/ |
 
-Verified mainnet transactions (each carrying both a pool event and a market event)
-are listed in [`strk20.json`](strk20.json).
+Verified mainnet transactions, each carrying both a pool event and a market event, are
+listed in [`strk20.json`](strk20.json).
 
-## Run it locally
+## Run it
 
 ```bash
 yarn install
@@ -88,16 +115,11 @@ yarn dev                     # localhost:3000
 Cairo — 37 tests:
 
 ```bash
-cd cairo
-scarb build
-snforge test
+cd cairo && scarb build && snforge test
 ```
 
 Toolchain: node 24.0.2, scarb 2.18.0, starknet-foundry 0.63.0.
-
-## Stack
-
-Next.js 16 · React 19 · TypeScript 5.9 · starknet.js 10.4.0 · Cairo (edition 2024_07) · STRK20 privacy pool
+Stack: Next.js 16 · React 19 · TypeScript 5.9 · starknet.js 10.4.0 · Cairo `2024_07`.
 
 ## AI tools
 

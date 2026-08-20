@@ -23,12 +23,12 @@ const unbounded = Unbounded({
 })
 
 export const metadata: Metadata = {
-  title: 'Doom — private futarchy on Starknet',
+  title: 'Doom — a private prediction market on Starknet',
   description:
-    'The market is the vote. Decision markets with public prices and invisible voters, settling through the STRK20 privacy pool on Starknet mainnet.',
+    'Visible odds, invisible bettors. Bet sizes and odds stay public so the market stays accurate; who is betting is hidden. Live on Starknet mainnet through the STRK20 privacy pool.',
   openGraph: {
-    title: 'Doom — private futarchy on Starknet',
-    description: 'Public prices. Invisible voters. The market is the vote.',
+    title: 'Doom — a private prediction market on Starknet',
+    description: 'Visible odds. Invisible bettors.',
   },
 }
 
