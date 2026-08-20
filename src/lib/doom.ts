@@ -61,9 +61,15 @@ export type MarketState = {
   resolved: boolean;
   winningOutcome: number;
   resolver: string;
-  /** Unix seconds after which staking stops. null on v1 markets, which had no deadline. */
+  /** Unix seconds after which betting stops. null on v1 markets, which had no deadline. */
   closesAt: number | null;
   isV2: boolean;
+  /** 'cpmm' markets price shares on a curve; 'parimutuel' ones only split a pot. */
+  kind: "cpmm" | "parimutuel";
+  /** Price of YES in basis points, 0..10000. Both sides always sum to 10000. */
+  priceYesBps: number;
+  /** Collateral bet, which is the market's volume. Equals total on parimutuel. */
+  volume: bigint;
 };
 
 export async function readMarket(
@@ -91,19 +97,65 @@ export async function readMarket(
   const potYes = num.toBigInt(pots[1]);
   const total = potNo + potYes;
 
+  // A CPMM market has no pots; it has reserves and a price. Probing get_price_yes
+  // is how we tell the two generations apart.
+  const [priceRaw, volumeRaw] = await Promise.all([
+    call("get_price_yes").catch(() => null),
+    call("get_volume").catch(() => null),
+  ]);
+  const isCpmm = priceRaw !== null;
+
+  const priceYesBps = isCpmm
+    ? Number(num.toBigInt(priceRaw[0]))
+    : total === 0n
+      ? 5000
+      : Number((potYes * 10000n) / total);
+
   return {
     address,
     question: decodeByteArray(questionRaw as string[]),
     potNo,
     potYes,
     total,
-    yesShare: total === 0n ? 0.5 : Number((potYes * 10000n) / total) / 10000,
+    yesShare: priceYesBps / 10000,
     resolved: num.toBigInt(resolvedRaw[0]) === 1n,
     winningOutcome: Number(num.toBigInt(winnerRaw[0])),
     resolver: num.toHex(resolverRaw[0]),
     closesAt: closesRaw ? Number(num.toBigInt(closesRaw[0])) : null,
     isV2: closesRaw !== null,
+    kind: isCpmm ? "cpmm" : "parimutuel",
+    priceYesBps,
+    volume: volumeRaw ? num.toBigInt(volumeRaw[0]) : total,
   };
+}
+
+/**
+ * Ask the market maker what `amount` of collateral buys right now. Pinned against
+ * the fill by `a_quote_matches_what_the_buy_actually_pays`, so the UI can promise a
+ * number without lying about it.
+ */
+export async function quoteShares(
+  provider: ProviderInterface,
+  market: string,
+  outcome: number,
+  amountWei: bigint,
+): Promise<bigint | null> {
+  if (amountWei <= 0n) return 0n;
+  try {
+    const r = await provider.callContract({
+      contractAddress: market,
+      entrypoint: "quote",
+      calldata: [num.toHex(outcome), num.toHex(amountWei)],
+    });
+    return num.toBigInt(r[0]);
+  } catch {
+    return null; // parimutuel markets have no quote
+  }
+}
+
+/** Price in cents, the way a prediction market is normally read. */
+export function priceCents(bps: number): string {
+  return (bps / 100).toFixed(0);
 }
 
 /** ByteArray is [len, ...words, pending_word, pending_len]. */
@@ -166,6 +218,8 @@ const KEY = "doom:positions";
 export type SavedPosition = {
   market: string;
   secret: string;
+  /** Outcome shares received, on CPMM markets. Absent on older parimutuel bets. */
+  shares?: string;
   commitment: string;
   outcome: number;
   amount: string;

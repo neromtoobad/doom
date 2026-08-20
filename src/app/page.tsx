@@ -23,6 +23,8 @@ import {
   computeCommitment,
   fmtStrk,
   loadPositions,
+  priceCents,
+  quoteShares,
   parseStrk,
   randomSecret,
   readMarket,
@@ -143,6 +145,7 @@ export default function Home() {
   const [claimSecret, setClaimSecret] = useState("");
   const [saved, setSaved] = useState<SavedPosition[]>([]);
   const [decisions, setDecisions] = useState<DecisionState[]>([]);
+  const [quote, setQuote] = useState<bigint | null>(null);
 
   const provider = constants.myFrontendProviders[0]; // mainnet
 
@@ -194,6 +197,31 @@ export default function Home() {
         ? "Settled NO"
         : "Void — refunded";
 
+  // Live fill preview. The contract's own quote(), so the number shown is the
+  // number the buy delivers.
+  useEffect(() => {
+    let dead = false;
+    if (!market || market.kind !== "cpmm" || market.resolved) {
+      setQuote(null);
+      return;
+    }
+    let wei: bigint;
+    try {
+      wei = parseStrk(amount);
+    } catch {
+      setQuote(null);
+      return;
+    }
+    const t = setTimeout(async () => {
+      const q = await quoteShares(provider, market.address, outcome, wei);
+      if (!dead) setQuote(q);
+    }, 180);
+    return () => {
+      dead = true;
+      clearTimeout(t);
+    };
+  }, [market, outcome, amount, provider]);
+
   function selectMarket(addr: string | null) {
     setSelected(addr);
     setResult({ kind: "idle" });
@@ -230,6 +258,7 @@ export default function Home() {
         secret,
         commitment,
         outcome,
+        shares: quote != null ? quote.toString() : undefined,
         amount: wei.toString(),
         at: Date.now(),
         txHash: tx,
@@ -384,14 +413,18 @@ export default function Home() {
                     <h2 className={s.tileQ}>{m.question}</h2>
                     <div className={s.tileSides}>
                       <span className={`${s.tileSide} ${s.sideYes}`}>
-                        <span className={s.yes}>Yes</span> {fmtStrk(m.potYes)}
+                        <span className={s.yes}>Yes</span>
+                        {m.kind === "cpmm" ? `${priceCents(m.priceYesBps)}¢` : fmtStrk(m.potYes)}
                       </span>
                       <span className={`${s.tileSide} ${s.sideNo}`}>
-                        <span className={s.no}>No</span> {fmtStrk(m.potNo)}
+                        <span className={s.no}>No</span>
+                        {m.kind === "cpmm"
+                          ? `${priceCents(10000 - m.priceYesBps)}¢`
+                          : fmtStrk(m.potNo)}
                       </span>
                     </div>
                     <div className={s.tileFoot}>
-                      <span>{fmtStrk(m.total)} STRK volume</span>
+                      <span>{fmtStrk(m.volume)} STRK volume</span>
                       <span className={s.tileFootDim}>holders hidden</span>
                     </div>
                   </button>
@@ -465,13 +498,23 @@ export default function Home() {
                             className={`${s.pickBtn} ${outcome === OUTCOME_YES ? s.pickYesOn : ""}`}
                             onClick={() => setOutcome(OUTCOME_YES)}
                           >
-                            Yes
+                            <span className={s.pickSide}>Yes</span>
+                            {market.kind === "cpmm" && (
+                              <span className={s.pickPrice}>
+                                {priceCents(market.priceYesBps)}¢
+                              </span>
+                            )}
                           </button>
                           <button
                             className={`${s.pickBtn} ${outcome === OUTCOME_NO ? s.pickNoOn : ""}`}
                             onClick={() => setOutcome(OUTCOME_NO)}
                           >
-                            No
+                            <span className={s.pickSide}>No</span>
+                            {market.kind === "cpmm" && (
+                              <span className={s.pickPrice}>
+                                {priceCents(10000 - market.priceYesBps)}¢
+                              </span>
+                            )}
                           </button>
                         </div>
                         <label className={s.label} htmlFor="amt">
@@ -488,6 +531,33 @@ export default function Home() {
                           />
                           <span className={s.inputSuffix}>STRK</span>
                         </div>
+                        {market.kind === "cpmm" && quote != null && quote > 0n && (
+                          <div className={s.fill}>
+                            <div className={s.fillRow}>
+                              <span>You receive</span>
+                              <span className={s.fillVal}>{fmtStrk(quote)} shares</span>
+                            </div>
+                            <div className={s.fillRow}>
+                              <span>If {outcome === OUTCOME_YES ? "YES" : "NO"} wins</span>
+                              <span className={s.fillWin}>{fmtStrk(quote)} STRK</span>
+                            </div>
+                            <div className={s.fillRow}>
+                              <span>Return</span>
+                              <span className={s.fillVal}>
+                                {(() => {
+                                  let cost = 1n;
+                                  try {
+                                    cost = parseStrk(amount);
+                                  } catch {}
+                                  if (cost <= 0n) return "—";
+                                  const pct = Number((quote * 10000n) / cost) / 100 - 100;
+                                  return `${pct > 0 ? "+" : ""}${pct.toFixed(1)}%`;
+                                })()}
+                              </span>
+                            </div>
+                          </div>
+                        )}
+
                         <button
                           className={s.cta}
                           onClick={stake}
