@@ -20,3 +20,19 @@ constructor:
 
 verified on chain: deployed class matches the local build the 18 tests ran against,
 and get_question decodes back to the intended string.
+
+---
+
+## DoomPredictionMarket (mainnet) — the share markets
+
+class hash : 0x59dc95c72ad09b4b7fd090351e0c152fdc17501f23fa44c92a1c1f0273953af
+declare tx : 0x1bece394cbebf4f7f5f27e149cc9a88f6847a16971d2e90884900a1daddc119
+
+0x026e1e64b1ed70983ff96d5f8605c0d3ad2ca13e4746e02875b0fa608932aa6b
+  "Will Doom publish a demo video before 2026-08-30 23:59 UTC?"  closes 2026-08-29 12:00 UTC
+0x00611045be3eb6172f9ca2603c1dfbdb1319151178c8aa8f990b02363f12730f
+  "Will BTC close above $150,000 on 2026-12-31?"                 closes 2026-12-31 23:59 UTC
+
+Both seeded with 10 STRK of liquidity, both opening at 50c with reserves 10/10.
+Verified on chain: deployed class matches the tested build, questions decode back
+to the intended strings, and the liquidity provider is recorded.
