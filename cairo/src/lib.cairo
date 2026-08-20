@@ -9,6 +9,9 @@ pub mod doom_market;
 pub mod doom_market_v2;
 // futarchy: two conditional branches, the prices make the decision.
 pub mod doom_decision;
+// The real thing: a fixed-product market maker over outcome shares, Polymarket
+// mechanics with STRK20 privacy. Supersedes the parimutuel markets above.
+pub mod doom_prediction_market;
 
 // Test-only. Never deployed.
 pub mod mock_erc20;
