@@ -327,3 +327,44 @@ export function decideCall(decision: string) {
 export function branchShareBps(m: MarketState): number {
   return m.total === 0n ? 0 : Math.round(m.yesShare * 10000);
 }
+
+// ── price history ───────────────────────────────────────────────────────────────
+// Every trade emits Bought{commitment, outcome, cost, shares, price_yes_bps}, so the
+// market's whole price history is already on chain. No indexer, no backend: the
+// chart is reconstructed from events the contract emitted as it repriced.
+
+export type PricePoint = { block: number; bps: number; outcome: number; cost: bigint };
+
+/** Selector for the Bought event, used to filter the log. */
+const BOUGHT_KEY = hash.getSelectorFromName("Bought");
+
+export async function readPriceHistory(
+  provider: ProviderInterface,
+  market: string,
+  fromBlock = 13500000,
+): Promise<PricePoint[]> {
+  try {
+    const res = await provider.getEvents({
+      address: market,
+      keys: [[BOUGHT_KEY]],
+      from_block: { block_number: fromBlock },
+      to_block: "latest",
+      chunk_size: 100,
+    });
+    return (res.events ?? [])
+      .map((e) => {
+        // data = [outcome, cost, shares, price_yes_bps]
+        const d = e.data ?? [];
+        if (d.length < 4) return null;
+        return {
+          block: Number(e.block_number ?? 0),
+          outcome: Number(num.toBigInt(d[0])),
+          cost: num.toBigInt(d[1]),
+          bps: Number(num.toBigInt(d[3])),
+        };
+      })
+      .filter(Boolean) as PricePoint[];
+  } catch {
+    return [];
+  }
+}

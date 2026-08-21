@@ -25,6 +25,8 @@ import {
   loadPositions,
   priceCents,
   quoteShares,
+  readPriceHistory,
+  type PricePoint,
   parseStrk,
   randomSecret,
   readMarket,
@@ -207,6 +209,72 @@ function Portfolio({
   );
 }
 
+
+/**
+ * Probability timeline, reconstructed from the market's own Bought events. A clean
+ * line rather than candlesticks: this is a probability, not an asset price. Seeded
+ * at the 50c open so a market with one trade still shows the move it made.
+ */
+function PriceChart({ points, current }: { points: PricePoint[]; current: number }) {
+  const series = [5000, ...points.map((p) => p.bps), current];
+  const W = 640, H = 150, PAD = 8;
+  const min = Math.max(0, Math.min(...series) - 400);
+  const max = Math.min(10000, Math.max(...series) + 400);
+  const span = Math.max(1, max - min);
+  const x = (i: number) => PAD + (i / Math.max(1, series.length - 1)) * (W - PAD * 2);
+  const y = (v: number) => PAD + (1 - (v - min) / span) * (H - PAD * 2);
+  const d = series.map((v, i) => `${i === 0 ? "M" : "L"} ${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join(" ");
+  const area = `${d} L ${x(series.length - 1).toFixed(1)} ${H - PAD} L ${x(0).toFixed(1)} ${H - PAD} Z`;
+  const up = series[series.length - 1] >= series[0];
+  const col = up ? "#22c55e" : "#ef4444";
+
+  return (
+    <div className={s.chartWrap}>
+      <div className={s.chartHead}>
+        <span className={s.chartTitle}>Probability history</span>
+        <span className={s.chartMeta}>
+          {points.length === 0
+            ? "no trades yet — opens at 50¢"
+            : `${points.length} trade${points.length === 1 ? "" : "s"} on chain`}
+        </span>
+      </div>
+      <svg viewBox={`0 0 ${W} ${H}`} className={s.chartSvg} preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="doomFill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={col} stopOpacity="0.22" />
+            <stop offset="100%" stopColor={col} stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        {[0.25, 0.5, 0.75].map((f) => (
+          <line key={f} x1={PAD} x2={W - PAD} y1={PAD + f * (H - PAD * 2)} y2={PAD + f * (H - PAD * 2)}
+            stroke="#26262c" strokeWidth="1" strokeDasharray="3 5" />
+        ))}
+        <path d={area} fill="url(#doomFill)" />
+        <path d={d} fill="none" stroke={col} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+        {series.map((v, i) => (
+          <circle key={i} cx={x(i)} cy={y(v)} r={i === series.length - 1 ? 4 : 2.5}
+            fill={i === series.length - 1 ? col : "#0c0c0e"} stroke={col} strokeWidth="2" />
+        ))}
+      </svg>
+      <div className={s.chartAxis}>
+        <span>open 50¢</span>
+        <span className={s.chartNow} style={{ color: col }}>
+          now {priceCents(current)}¢
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/** Token art for crypto markets. The starter kit already ships these. */
+function marketIcon(q: string): string | null {
+  const t = q.toUpperCase();
+  if (t.includes("BTC")) return "btc.webp";
+  if (t.includes("ETH")) return "eth.png";
+  if (t.includes("STRK")) return "strk.png";
+  return null;
+}
+
 export default function Home() {
   const myWalletAccount = useStoreWallet((st) => st.myWalletAccount);
   const address = useStoreWallet((st) => st.address);
@@ -221,6 +289,7 @@ export default function Home() {
   const [saved, setSaved] = useState<SavedPosition[]>([]);
   const [decisions, setDecisions] = useState<DecisionState[]>([]);
   const [quote, setQuote] = useState<bigint | null>(null);
+  const [history, setHistory] = useState<PricePoint[]>([]);
   const [filter, setFilter] = useState<"all" | "crypto" | "starknet" | "closing">("all");
   const [sort, setSort] = useState<"volume" | "closing" | "new">("volume");
   const [showPortfolio, setShowPortfolio] = useState(false);
@@ -320,6 +389,21 @@ export default function Home() {
       clearTimeout(t);
     };
   }, [market, outcome, amount, provider]);
+
+  // Price history for whichever market is open, straight from its own events.
+  useEffect(() => {
+    let dead = false;
+    if (!market || market.kind !== "cpmm") {
+      setHistory([]);
+      return;
+    }
+    readPriceHistory(provider, market.address).then((h) => {
+      if (!dead) setHistory(h);
+    });
+    return () => {
+      dead = true;
+    };
+  }, [market?.address, market?.volume, provider]);
 
   function selectMarket(addr: string | null) {
     setSelected(addr);
@@ -519,6 +603,10 @@ export default function Home() {
                     onClick={() => selectMarket(m.address)}
                   >
                     <div className={s.tileTop}>
+                      {marketIcon(m.question) && (
+                        /* eslint-disable-next-line @next/next/no-img-element */
+                        <img className={s.tileIcon} src={`tokens/${marketIcon(m.question)}`} alt="" />
+                      )}
                       <span className={m.resolved ? `${s.status} ${s.statusClosed}` : s.status}>
                         <span className={s.statusDot} />
                         {m.resolved ? "Settled" : "Open"}
@@ -569,6 +657,10 @@ export default function Home() {
                     </div>
                   </div>
 
+                  {market.kind === "cpmm" && (
+                    <PriceChart points={history} current={market.priceYesBps} />
+                  )}
+
                   <div className={s.sides}>
                     <div className={`${s.side} ${s.sideYes}`}>
                       <span className={`${s.sideName} ${s.yes}`}>Yes</span>
@@ -582,10 +674,18 @@ export default function Home() {
 
                   <div className={s.meta}>
                     <span className={s.metaItem}>
-                      Settlement <span className={s.metaVal}>Parimutuel</span>
+                      Settlement{" "}
+                      <span className={s.metaVal}>
+                        {market.kind === "cpmm"
+                          ? "1 share pays 1 STRK"
+                          : "Parimutuel · winners split the pot"}
+                      </span>
                     </span>
                     <span className={s.metaItem}>
-                      Resolver <span className={s.metaVal}>Named, single</span>
+                      Resolution{" "}
+                      <span className={s.metaVal}>
+                        {market.isV2 ? "Bonded, anyone can propose" : "Named resolver"}
+                      </span>
                     </span>
                     <span className={s.metaItem}>
                       Contract{" "}
