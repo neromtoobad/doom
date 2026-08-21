@@ -556,7 +556,7 @@
 /* ── hero: exaggerated minimalism ──────────────────────────────────── */
 .hero {
   position: relative;
-  padding: clamp(56px, 9vh, 120px) 0 clamp(40px, 6vh, 80px);
+  padding: clamp(38px, 5.5vh, 72px) 0 clamp(30px, 4vh, 52px);
 }
 /* The crowd sits behind the type: unidentifiable people under a bright price
    line. Anchored right so the headline keeps the empty left third, and masked
@@ -575,9 +575,9 @@
    constraining it to a grid column was clipping the longest word. */
 .heroTitle {
   font-family: var(--font-display), sans-serif;
-  font-size: clamp(2.4rem, 9.4vw, 8.5rem);
-  font-weight: 900; line-height: .84; letter-spacing: -0.055em;
-  margin: 0 0 clamp(30px, 5vh, 60px); display: block;
+  font-size: clamp(1.9rem, 5.6vw, 4.4rem);
+  font-weight: 900; line-height: .9; letter-spacing: -0.04em;
+  margin: 0 0 clamp(22px, 3.4vh, 40px); display: block;
   overflow-wrap: break-word;
 }
 /* Two words per line at desktop, stacking naturally when it gets narrow. */
