@@ -275,6 +275,54 @@ function marketIcon(q: string): string | null {
   return null;
 }
 
+
+/**
+ * How this market settles, stated where a bettor decides rather than in a footer.
+ * Source of truth, who may settle, the challenge window, and what happens on a
+ * dispute — the questions someone asks before risking money.
+ */
+function Resolution({ market }: { market: MarketState }) {
+  const closes =
+    market.closesAt === null
+      ? "no deadline (first-generation market)"
+      : new Date(market.closesAt * 1000).toUTCString().replace("GMT", "UTC");
+  return (
+    <section className={s.resolution}>
+      <div className={s.resHead}>
+        <span className={s.resTitle}>How this settles</span>
+        <span className={s.resTag}>{market.isV2 ? "Permissionless" : "Named resolver"}</span>
+      </div>
+      <dl className={s.resGrid}>
+        <dt>Betting closes</dt>
+        <dd>{closes}</dd>
+        <dt>Who settles</dt>
+        <dd>
+          {market.isV2
+            ? "Anyone. Post a bond and propose the outcome."
+            : "A single named resolver address."}
+        </dd>
+        <dt>If contested</dt>
+        <dd>
+          {market.isV2
+            ? "Anyone matches the bond to dispute. An arbiter then rules, and the wrong side forfeits its bond to the right one."
+            : "No dispute path on this generation — the reason v2 replaced it."}
+        </dd>
+        <dt>Payout</dt>
+        <dd>
+          {market.kind === "cpmm"
+            ? "Each winning share redeems for exactly 1 STRK, into a shielded note."
+            : "Winners split the whole pot in proportion to their stake."}
+        </dd>
+        <dt>Source of truth</dt>
+        <dd>
+          The question names a public, checkable fact. Nothing here reads an oracle
+          yet, so settlement is a human claim backed by a bond rather than a feed.
+        </dd>
+      </dl>
+    </section>
+  );
+}
+
 export default function Home() {
   const myWalletAccount = useStoreWallet((st) => st.myWalletAccount);
   const address = useStoreWallet((st) => st.address);
@@ -293,6 +341,7 @@ export default function Home() {
   const [filter, setFilter] = useState<"all" | "crypto" | "starknet" | "closing">("all");
   const [sort, setSort] = useState<"volume" | "closing" | "new">("volume");
   const [showPortfolio, setShowPortfolio] = useState(false);
+  const [query, setQuery] = useState("");
 
   const provider = constants.myFrontendProviders[0]; // mainnet
 
@@ -335,7 +384,9 @@ export default function Home() {
   const soon = (m: MarketState) =>
     m.closesAt !== null && m.closesAt * 1000 - Date.now() < 14 * 864e5;
 
+  const q = query.trim().toLowerCase();
   const list = all
+    .filter((m) => (q === "" ? true : m.question.toLowerCase().includes(q)))
     .filter((m) =>
       filter === "all"
         ? true
@@ -570,6 +621,13 @@ export default function Home() {
                 </button>
               ))}
               <span className={s.filterSpacer} />
+              <input
+                className={s.search}
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search markets"
+                aria-label="Search markets"
+              />
               <select
                 className={s.sort}
                 value={sort}
@@ -700,6 +758,8 @@ export default function Home() {
                     </span>
                   </div>
                 </article>
+
+                <Resolution market={market} />
               </div>
 
               <aside>
