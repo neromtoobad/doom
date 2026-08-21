@@ -328,6 +328,79 @@ function Resolution({ market }: { market: MarketState }) {
   );
 }
 
+
+/**
+ * Exaggerated minimalism: one statement at display scale, enormous negative space,
+ * and the live market state as small caps beneath it. The board used to open on a
+ * stats row and a grid, which reads as a dashboard. A prediction market should
+ * open by saying what it is.
+ */
+function Hero({
+  markets,
+  totalVolume,
+  openCount,
+  onOpen,
+}: {
+  markets: MarketState[];
+  totalVolume: bigint;
+  openCount: number;
+  onOpen: (a: string) => void;
+}) {
+  // The market with the most volume leads: a real price beats a placeholder.
+  const lead = [...markets].sort((a, b) => (a.volume > b.volume ? -1 : 1))[0];
+  return (
+    <header className={s.hero}>
+      <div className={s.heroInner}>
+        <h1 className={s.heroTitle}>
+          <span className={s.heroRow}>
+            <span className={s.heroLine}>VISIBLE</span>
+            <span className={s.heroLine}>ODDS.</span>
+          </span>
+          <span className={s.heroRow}>
+            <span className={`${s.heroLine} ${s.heroAccent}`}>INVISIBLE</span>
+            <span className={`${s.heroLine} ${s.heroAccent}`}>BETTORS.</span>
+          </span>
+        </h1>
+
+        <div className={s.heroSide}>
+          <p className={s.heroBlurb}>
+            A prediction market on Starknet where the prices are public and the
+            people are not. Bet sizes and odds stay visible, so the market stays
+            accurate. Who is betting never touches the chain.
+          </p>
+
+          <dl className={s.heroStats}>
+            <div>
+              <dt>Volume</dt>
+              <dd>{fmtStrk(totalVolume)} STRK</dd>
+            </div>
+            <div>
+              <dt>Open</dt>
+              <dd>{openCount}</dd>
+            </div>
+            <div>
+              <dt>Bettors known</dt>
+              <dd className={s.heroZero}>0</dd>
+            </div>
+          </dl>
+
+          {lead && (
+            <button className={s.heroLead} onClick={() => onOpen(lead.address)}>
+              <span className={s.heroLeadLabel}>Most traded</span>
+              <span className={s.heroLeadQ}>{lead.question}</span>
+              <span className={s.heroLeadPx}>
+                <b className={s.yes}>{priceCents(lead.priceYesBps)}¢</b> yes
+                <span className={s.heroLeadDiv} />
+                <b className={s.no}>{priceCents(10000 - lead.priceYesBps)}¢</b> no
+              </span>
+            </button>
+          )}
+        </div>
+      </div>
+    </header>
+  );
+}
+
 export default function Home() {
   const myWalletAccount = useStoreWallet((st) => st.myWalletAccount);
   const address = useStoreWallet((st) => st.address);
@@ -581,23 +654,12 @@ export default function Home() {
       <Ticker items={all} onPick={selectMarket} />
 
       <div className={s.shell}>
-        <section className={s.stats}>
-          <div>
-            <div className={s.statLabel}>Total volume</div>
-            <div className={s.statValue}>
-              <CountUp value={Number(totalStaked) / 1e18} /> STRK
-            </div>
-          </div>
-          <div>
-            <div className={s.statLabel}>Open markets</div>
-            <div className={s.statValue}>{open}</div>
-          </div>
-          <div>
-            <div className={s.statLabel}>Bettors identifiable</div>
-            <div className={`${s.statValue} ${s.statHidden}`}>0</div>
-            <div className={s.statNote}>and that is the point</div>
-          </div>
-        </section>
+        <Hero
+          markets={all}
+          totalVolume={totalStaked}
+          openCount={open}
+          onOpen={selectMarket}
+        />
 
         {!market ? (
           <>

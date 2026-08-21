@@ -552,3 +552,81 @@
 @media (prefers-reduced-motion: reduce) {
   .cta:hover:not(:disabled)::after { animation: none; }
 }
+
+/* ── hero: exaggerated minimalism ──────────────────────────────────── */
+.hero { padding: clamp(56px, 9vh, 120px) 0 clamp(40px, 6vh, 80px); }
+.heroInner { display: block; }
+/* The title gets its own full-width row so the type can actually be large;
+   constraining it to a grid column was clipping the longest word. */
+.heroTitle {
+  font-family: var(--font-display), sans-serif;
+  font-size: clamp(2.4rem, 9.4vw, 8.5rem);
+  font-weight: 900; line-height: .84; letter-spacing: -0.055em;
+  margin: 0 0 clamp(30px, 5vh, 60px); display: block;
+  overflow-wrap: break-word;
+}
+/* Two words per line at desktop, stacking naturally when it gets narrow. */
+.heroLine + .heroLine { margin-left: .28em; }
+@media (max-width: 760px) { .heroLine + .heroLine { margin-left: 0; } }
+.heroLine { display: block; }
+/* Each line rises in on load — the stagger the motion guidance asks for. */
+.heroLine { animation: riseIn .75s cubic-bezier(.22,1,.36,1) both; }
+.heroLine:nth-child(2) { animation-delay: .07s; }
+.heroLine:nth-child(3) { animation-delay: .14s; }
+.heroLine:nth-child(4) { animation-delay: .21s; }
+@keyframes riseIn {
+  from { opacity: 0; transform: translateY(.36em); }
+  to   { opacity: 1; transform: none; }
+}
+.heroAccent {
+  background: linear-gradient(100deg, #ff8a5c, var(--accent) 45%, #d8431a);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+
+.heroSide {
+  display: grid; grid-template-columns: minmax(0, 1.1fr) auto minmax(280px, .9fr);
+  gap: clamp(22px, 4vw, 52px); align-items: end;
+}
+@media (max-width: 980px) { .heroSide { grid-template-columns: 1fr; gap: 26px; } }
+.heroBlurb {
+  font-size: 15px; line-height: 1.65; color: var(--muted); margin: 0; max-width: 46ch;
+}
+.heroStats {
+  display: grid; grid-template-columns: repeat(3, auto); gap: 26px;
+  margin: 0; justify-content: start;
+}
+.heroStats dt {
+  font-size: 10.5px; letter-spacing: .13em; text-transform: uppercase;
+  color: #6a6a72; margin-bottom: 6px;
+}
+.heroStats dd {
+  margin: 0; font-family: var(--font-display), sans-serif;
+  font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums;
+}
+.heroZero { color: var(--accent); }
+
+.heroLead {
+  display: grid; gap: 9px; text-align: left; cursor: pointer; color: inherit;
+  padding: 18px 20px; border-radius: 16px;
+  border: 1px solid rgba(255,255,255,.08);
+  background: linear-gradient(180deg, rgba(30,30,36,.7), rgba(18,18,22,.7));
+  backdrop-filter: blur(14px);
+  transition: border-color .2s, transform .2s;
+}
+.heroLead:hover { border-color: rgba(255,107,53,.45); transform: translateY(-2px); }
+.heroLeadLabel {
+  font-size: 10.5px; letter-spacing: .13em; text-transform: uppercase; color: #6a6a72;
+}
+.heroLeadQ { font-size: 14.5px; line-height: 1.45; font-weight: 600; }
+.heroLeadPx {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums;
+}
+.heroLeadPx b { font-family: var(--font-display), sans-serif; font-size: 17px; }
+.heroLeadDiv { width: 1px; height: 14px; background: var(--line); }
+
+@media (prefers-reduced-motion: reduce) {
+  .heroLine { animation: none; }
+}
+.heroRow { display: block; white-space: nowrap; }
+@media (max-width: 760px) { .heroRow { white-space: normal; } }
