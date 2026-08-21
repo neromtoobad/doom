@@ -20,24 +20,38 @@
   position: relative;
   overflow-x: hidden;
 }
-/* two ember blobs drifting very slowly behind everything */
+/* Aurora: three heavily blurred orbs drifting behind everything, so the glass
+   panels have something alive to refract. Fixed, so they do not scroll away. */
 .page::before, .page::after {
   content: ""; position: fixed; z-index: 0; border-radius: 50%;
-  filter: blur(90px); pointer-events: none;
+  filter: blur(110px); pointer-events: none; will-change: transform;
 }
 .page::before {
-  width: 480px; height: 480px; left: -160px; top: 20%;
-  background: rgba(255,107,53,0.09);
-  animation: drift 26s ease-in-out infinite alternate;
+  width: 560px; height: 560px; left: -180px; top: 8%;
+  background: radial-gradient(circle, rgba(255,107,53,.30), rgba(255,107,53,0) 70%);
+  animation: drift 30s ease-in-out infinite alternate;
 }
 .page::after {
-  width: 380px; height: 380px; right: -120px; top: 55%;
-  background: rgba(34,197,94,0.05);
-  animation: drift 34s ease-in-out infinite alternate-reverse;
+  width: 520px; height: 520px; right: -160px; top: 44%;
+  background: radial-gradient(circle, rgba(34,197,94,.18), rgba(34,197,94,0) 70%);
+  animation: drift 38s ease-in-out infinite alternate-reverse;
+}
+/* A third orb plus the grain, on a dedicated layer. Grain is what stops large
+   dark gradients from banding, and it is most of why premium dark UIs read as
+   textured rather than flat. */
+.aurora {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background:
+    radial-gradient(620px 420px at 78% -8%, rgba(120,80,255,.13), transparent 68%),
+    radial-gradient(520px 380px at 8% 96%, rgba(255,107,53,.10), transparent 65%);
+}
+.aurora::after {
+  content: ""; position: absolute; inset: 0; opacity: .30; mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='.5'/%3E%3C/svg%3E");
 }
 @keyframes drift {
-  from { transform: translate3d(0, -40px, 0) scale(1); }
-  to   { transform: translate3d(60px, 50px, 0) scale(1.15); }
+  from { transform: translate3d(0, -50px, 0) scale(1); }
+  to   { transform: translate3d(70px, 60px, 0) scale(1.18); }
 }
 .page > * { position: relative; z-index: 1; }
 
@@ -108,8 +122,19 @@
 @media (max-width: 960px) { .grid { grid-template-columns: 1fr; } }
 
 .card {
-  border-radius: 20px; border: 1px solid var(--line);
-  background: var(--surface); overflow: hidden;
+  border-radius: 20px; border: 1px solid rgba(255,255,255,.07);
+  background: linear-gradient(180deg, rgba(30,30,36,.72), rgba(18,18,22,.72));
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  overflow: hidden; position: relative;
+  box-shadow: 0 22px 60px -30px rgba(0,0,0,.9);
+}
+/* The hairline where light catches the top edge of a glass pane. This one detail
+   is most of the difference between "dark box" and "glass". */
+.card::before {
+  content: ""; position: absolute; inset: 0 0 auto; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.22), transparent);
+  pointer-events: none;
 }
 .cardPad { padding: 26px; }
 
@@ -282,8 +307,12 @@
 }
 .empty { color: var(--muted); font-size: 14px; padding: 40px 0; }
 .tile {
-  text-align: left; cursor: pointer; color: inherit;
-  border-radius: 20px; border: 1px solid var(--line); background: var(--surface);
+  text-align: left; cursor: pointer; color: inherit; position: relative;
+  border-radius: 20px; border: 1px solid rgba(255,255,255,.06);
+  background: linear-gradient(180deg, rgba(30,30,36,.62), rgba(18,18,22,.62));
+  backdrop-filter: blur(12px) saturate(130%);
+  -webkit-backdrop-filter: blur(12px) saturate(130%);
+  box-shadow: 0 16px 40px -28px rgba(0,0,0,.9);
   padding: 22px; display: flex; flex-direction: column; gap: 14px;
   transition: border-color .15s, transform .15s;
 }
@@ -493,4 +522,33 @@
 @media (max-width: 620px) {
   .resGrid { grid-template-columns: 1fr; gap: 3px 0; }
   .resGrid dd { margin-bottom: 10px; }
+}
+
+/* light-catch edge on cards, matching the panels */
+.tile::before {
+  content: ""; position: absolute; inset: 0 0 auto; height: 1px; border-radius: 20px 20px 0 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.18), transparent);
+  pointer-events: none;
+}
+
+/* Big numbers get a faint bloom, the way a lit display would */
+.statValue { text-shadow: 0 0 34px rgba(255,255,255,.12); }
+.gaugePct { text-shadow: 0 0 22px rgba(34,197,94,.28); }
+
+/* Primary CTA: a moving sheen rather than a flat fill */
+.cta {
+  position: relative; overflow: hidden;
+  background: linear-gradient(135deg, #ff7d4b, var(--accent) 55%, #e2551f);
+  box-shadow: 0 10px 30px -12px rgba(255,107,53,.6);
+}
+.cta::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(110deg, transparent 30%, rgba(255,255,255,.30) 50%, transparent 70%);
+  transform: translateX(-100%);
+}
+.cta:hover:not(:disabled)::after { animation: sheen .85s ease; }
+@keyframes sheen { to { transform: translateX(100%); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .cta:hover:not(:disabled)::after { animation: none; }
 }

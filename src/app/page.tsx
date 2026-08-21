@@ -268,11 +268,16 @@ function PriceChart({ points, current }: { points: PricePoint[]; current: number
 
 /** Token art for crypto markets. The starter kit already ships these. */
 function marketIcon(q: string): string | null {
-  const t = q.toUpperCase();
-  if (t.includes("BTC")) return "btc.webp";
-  if (t.includes("ETH")) return "eth.png";
-  if (t.includes("STRK")) return "strk.png";
-  return null;
+  // Only price markets get token art. Matching a bare mention put the STRK logo
+  // on "strk20-hackathon PR #100", which is a governance question, not a price.
+  const m = /^Will (BTC|ETH|STRK|SOL) close above/i.exec(q.trim());
+  if (!m) return null;
+  const icons: Record<string, string> = {
+    BTC: "btc.webp",
+    ETH: "eth.png",
+    STRK: "strk.png",
+  };
+  return icons[m[1].toUpperCase()] ?? null;
 }
 
 
@@ -558,6 +563,7 @@ export default function Home() {
 
   return (
     <main className={s.page}>
+      <div className={s.aurora} aria-hidden />
       <nav className={s.nav}>
         <div className={s.navLeft}>
           <button className={s.brandBtn} onClick={() => selectMarket(null)}>
