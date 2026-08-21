@@ -39,6 +39,8 @@ export default function SelectWallet({ variant = "ctaBig" }: { variant?: "nav" |
   const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState<string>("");
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
   // Detected Starknet wallets, in render state so the picker updates as wallets register.
   const [wallets, setWallets] = useState<WalletWithStarknetFeatures[]>([]);
 
@@ -90,6 +92,8 @@ export default function SelectWallet({ variant = "ctaBig" }: { variant?: "nav" |
       console.log("change Provider index to :", myFrontendProviderIndex);
     }
     setWalletApi(await walletV6.supportedSpecs(selectedWallet));
+    // Connected — close the picker rather than leaving the modal up.
+    setPickerOpen(false);
   }
 
   // Open the wallet picker so the user can choose (Ready, Xverse, ...).
@@ -171,7 +175,7 @@ export default function SelectWallet({ variant = "ctaBig" }: { variant?: "nav" |
       return (
         <button
           className={styles.addrPill}
-          onClick={() => setConnected(false)}
+          onClick={disconnect}
           title="Disconnect"
         >
           <span className={styles.addrDot} />
@@ -190,12 +194,25 @@ export default function SelectWallet({ variant = "ctaBig" }: { variant?: "nav" |
     );
   }
 
-  // Default (ctaBig): the large solid connect CTA shown in the panel until a
-  // wallet is connected.
+  // Proper disconnect: clear the store so every consumer re-renders signed out.
+  // Flipping isConnected alone left a stale address behind.
+  function disconnect() {
+    setMyWalletAccount(undefined as never);
+    setMyWallet(undefined as never);
+    setAddressAccount("");
+    setChain("");
+    setConnected(false);
+  }
+
+  // Default (ctaBig): the large CTA in the trade panel. Once a wallet is connected
+  // the panel has nothing to ask for, so it renders nothing rather than a button
+  // that still says "connect" while you are already connected.
+  if (isConnected && address) return null;
+
   return (
     <>
-      <button className={styles.btnCta} onClick={openPicker}>
-        Connect a Wallet
+      <button className={styles.btnCta} onClick={openPicker} disabled={connecting}>
+        {connecting ? "Connecting…" : "Connect Wallet"}
       </button>
       {picker}
     </>
