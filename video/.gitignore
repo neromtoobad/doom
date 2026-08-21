@@ -1,0 +1,3 @@
+node_modules
+# Renders and the mixed track are derived from audio/ + src/; both are large.
+out

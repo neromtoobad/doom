@@ -1,0 +1,102 @@
+[
+  {
+    "id": 1,
+    "at": 1.0,
+    "text": "Doom. A prediction market where the odds are public, and the bettors are not."
+  },
+  {
+    "id": 2,
+    "at": 9.0,
+    "text": "Prediction markets work because you can see the money. That is also the problem."
+  },
+  {
+    "id": 3,
+    "at": 18.5,
+    "text": "Wallets are public. Anyone can follow the biggest positions, and the crowd follows the bettor instead of the evidence."
+  },
+  {
+    "id": 4,
+    "at": 33.0,
+    "text": "Doom splits them apart. Bet sizes, odds and volume stay public, and that keeps the market accurate. Who is betting never touches the chain."
+  },
+  {
+    "id": 5,
+    "at": 48.5,
+    "text": "It is a real market maker over binary outcome shares."
+  },
+  {
+    "id": 6,
+    "at": 55.0,
+    "text": "Volume is public. Bettor identities on chain: zero."
+  },
+  {
+    "id": 7,
+    "at": 61.5,
+    "text": "Thirteen markets, live on Starknet mainnet."
+  },
+  {
+    "id": 8,
+    "at": 67.5,
+    "text": "Every price is a probability, read off the contract."
+  },
+  {
+    "id": 9,
+    "at": 73.0,
+    "text": "Here is a bet. First, shield your tokens into Starknet's privacy pool."
+  },
+  {
+    "id": 10,
+    "at": 81.5,
+    "text": "Pick a market. Bitcoin above one hundred fifty thousand. The market says fifty five percent."
+  },
+  {
+    "id": 11,
+    "at": 89.5,
+    "text": "Choose a side, and a stake."
+  },
+  {
+    "id": 12,
+    "at": 95.0,
+    "text": "The panel calls the contract's own quote, so what you see is what you get."
+  },
+  {
+    "id": 13,
+    "at": 102.5,
+    "text": "The pool calls the market. The pool is always the caller, so the contract never sees an address."
+  },
+  {
+    "id": 14,
+    "at": 111.5,
+    "text": "Four transactions on mainnet. Four different senders. None of them is the bettor's wallet."
+  },
+  {
+    "id": 15,
+    "at": 119.0,
+    "text": "The odds move. The market learned something. It never learned who."
+  },
+  {
+    "id": 16,
+    "at": 126.5,
+    "text": "One honest limitation. Claiming links a payout back to the bet, though never to a person."
+  },
+  {
+    "id": 17,
+    "at": 137.0,
+    "text": "Collateral is measured by balance change, not calldata. Positions key off a commitment, not an address."
+  },
+  {
+    "id": 18,
+    "at": 148.5,
+    "text": "Settlement is bonded. Anyone proposes, anyone disputes by matching the bond, and an arbiter only touches a contested market."
+  },
+  {
+    "id": 19,
+    "at": 162.0,
+    "text": "Fourteen contracts. Thirteen markets. Fifty five passing tests. Zero bettor identities."
+  },
+  {
+    "id": 20,
+    "at": 175.0,
+    "text": "Doom. Visible odds. Invisible bettors."
+  }
+]

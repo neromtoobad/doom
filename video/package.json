@@ -1,0 +1,23 @@
+{
+  "name": "doom-video",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "remotion studio src/index.ts",
+    "render": "remotion render src/index.ts Doom out/doom.mp4"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.515",
+    "@remotion/google-fonts": "4.0.515",
+    "@remotion/media-utils": "4.0.515",
+    "@remotion/shapes": "4.0.515",
+    "remotion": "4.0.515",
+    "react": "19.0.0",
+    "react-dom": "19.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "19.0.0",
+    "typescript": "5.7.3",
+    "playwright": "1.49.1"
+  }
+}
