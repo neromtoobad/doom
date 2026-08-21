@@ -554,7 +554,22 @@
 }
 
 /* ── hero: exaggerated minimalism ──────────────────────────────────── */
-.hero { padding: clamp(56px, 9vh, 120px) 0 clamp(40px, 6vh, 80px); }
+.hero {
+  position: relative;
+  padding: clamp(56px, 9vh, 120px) 0 clamp(40px, 6vh, 80px);
+}
+/* The crowd sits behind the type: unidentifiable people under a bright price
+   line. Anchored right so the headline keeps the empty left third, and masked
+   so nothing competes with the text for contrast. */
+.hero::before {
+  content: ""; position: absolute; z-index: -1; pointer-events: none;
+  top: -80px; right: -14%; width: 82%; height: 130%;
+  background: url("/brand/hero.png") no-repeat right center / cover;
+  opacity: .5;
+  -webkit-mask-image: linear-gradient(100deg, transparent 6%, #000 46%, #000 82%, transparent 100%);
+  mask-image: linear-gradient(100deg, transparent 6%, #000 46%, #000 82%, transparent 100%);
+}
+@media (max-width: 900px) { .hero::before { opacity: .26; right: -30%; width: 120%; } }
 .heroInner { display: block; }
 /* The title gets its own full-width row so the type can actually be large;
    constraining it to a grid column was clipping the longest word. */
