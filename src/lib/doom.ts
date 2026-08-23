@@ -72,28 +72,71 @@ export type MarketState = {
   volume: bigint;
 };
 
+/**
+ * Per-market caches.
+ *
+ * The board polls thirteen markets every fifteen seconds, and each read was ten
+ * calls — roughly 120 to first paint and another 120 per cycle, against a key that
+ * ships in the client bundle and is shared by every visitor. Most of that was
+ * re-reading things that cannot change:
+ *
+ *   - question, closes_at and the arbiter are written once, in the constructor
+ *   - a resolved market is final in every field this type carries
+ *
+ * So the immutable half is read once per market, and a settled market is not read
+ * again at all.
+ */
+type StaticFields = {
+  question: string;
+  closesAt: number | null;
+  resolver: string;
+  isV2: boolean;
+};
+const staticCache = new Map<string, StaticFields>();
+const settledCache = new Map<string, MarketState>();
+
+/** Drop the caches — for tests, or after deploying a market at a reused address. */
+export function clearMarketCache() {
+  staticCache.clear();
+  settledCache.clear();
+}
+
 export async function readMarket(
   provider: ProviderInterface,
   address: string = MARKET,
 ): Promise<MarketState> {
+  const settled = settledCache.get(address);
+  if (settled) return settled;
+
   const call = (entrypoint: string) =>
     provider.callContract({ contractAddress: address, entrypoint, calldata: [] });
 
   // get_pots exists only on the parimutuel generation. Share markets have reserves
   // instead, so this must not be allowed to reject the whole read.
-  const [pots, resolvedRaw, winnerRaw, questionRaw] = await Promise.all([
+  const [pots, resolvedRaw, winnerRaw] = await Promise.all([
     call("get_pots").catch(() => ["0x0", "0x0"]),
     call("is_resolved"),
     call("get_winning_outcome"),
-    call("get_question"),
   ]);
 
   // v1 exposes get_resolver; v2 renamed it get_arbiter and added a close time.
-  // Probing both keeps one board able to list either generation.
-  const [resolverRaw, closesRaw] = await Promise.all([
-    call("get_resolver").catch(() => call("get_arbiter")).catch(() => ["0x0"]),
-    call("get_closes_at").catch(() => null),
-  ]);
+  // Probing both keeps one board able to list either generation. All three are
+  // constructor-only, so this runs once per market rather than once per refresh.
+  let statics = staticCache.get(address);
+  if (!statics) {
+    const [resolverRaw, closesRaw, questionRaw2] = await Promise.all([
+      call("get_resolver").catch(() => call("get_arbiter")).catch(() => ["0x0"]),
+      call("get_closes_at").catch(() => null),
+      call("get_question"),
+    ]);
+    statics = {
+      question: decodeByteArray(questionRaw2 as string[]),
+      closesAt: closesRaw ? Number(num.toBigInt(closesRaw[0])) : null,
+      resolver: num.toHex(resolverRaw[0]),
+      isV2: closesRaw !== null,
+    };
+    staticCache.set(address, statics);
+  }
 
   const potNo = num.toBigInt(pots[0]);
   const potYes = num.toBigInt(pots[1]);
@@ -114,22 +157,26 @@ export async function readMarket(
       ? 5000
       : Number((potYes * 10000n) / total);
 
-  return {
+  const state: MarketState = {
     address,
-    question: decodeByteArray(questionRaw as string[]),
+    question: statics.question,
     potNo: reserves ? num.toBigInt(reserves[1]) : potNo,
     potYes: reserves ? num.toBigInt(reserves[0]) : potYes,
     total,
     yesShare: priceYesBps / 10000,
     resolved: num.toBigInt(resolvedRaw[0]) === 1n,
     winningOutcome: Number(num.toBigInt(winnerRaw[0])),
-    resolver: num.toHex(resolverRaw[0]),
-    closesAt: closesRaw ? Number(num.toBigInt(closesRaw[0])) : null,
-    isV2: closesRaw !== null,
+    resolver: statics.resolver,
+    closesAt: statics.closesAt,
+    isV2: statics.isV2,
     kind: isCpmm ? "cpmm" : "parimutuel",
     priceYesBps,
     volume: volumeRaw ? num.toBigInt(volumeRaw[0]) : total,
   };
+
+  // Settled markets are final in every field above, so this is the last read.
+  if (state.resolved) settledCache.set(address, state);
+  return state;
 }
 
 /**

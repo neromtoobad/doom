@@ -704,3 +704,12 @@
 }
 .depthSlip { color: #55555e; }
 .depthSlipOn { color: var(--accent); }
+
+/* The nav ran out of room around 390px: the network pill and Connect button do
+   not shrink, so the wordmark was being overlapped rather than wrapped. The pill
+   is decorative — the chain is named again in every market panel. */
+@media (max-width: 560px) {
+  .nav { padding: 14px 16px; gap: 12px; }
+  .chip { display: none; }
+  .wordmark { font-size: 17px; }
+}
