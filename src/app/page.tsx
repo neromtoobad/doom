@@ -21,9 +21,14 @@ import {
   buyActions,
   claimActions,
   computeCommitment,
+  exportPositions,
   fmtStrk,
+  importPositions,
   loadPositions,
+  pnlPct,
+  positionValue,
   priceCents,
+  quoteLocal,
   quoteShares,
   readPriceHistory,
   type PricePoint,
@@ -151,15 +156,124 @@ function closesIn(m: MarketState): string {
  * tell you what you hold — it does not know who you are — so this is the only
  * place a position can be listed, and it is local by necessity, not by choice.
  */
+/**
+ * What different sizes actually fill at.
+ *
+ * A single quote hides the shape of the curve: on a thin market 25 STRK can pay a
+ * far worse average price than 1 STRK, and the only honest way to show that is to
+ * price several sizes at once. Computed locally from the reserves with the
+ * contract's own formula, so no extra call is made per rung; the number the user
+ * commits to still comes from `quote()`.
+ */
+function Depth({ market, outcome }: { market: MarketState; outcome: number }) {
+  // On share markets readMarket stores the reserves in these two fields.
+  const rYes = market.potYes;
+  const rNo = market.potNo;
+  if (rYes <= 0n || rNo <= 0n) return null;
+
+  const sizes = [1n, 5n, 25n].map((n) => n * 10n ** 18n);
+  const rungs = sizes.map((a) => {
+    const out = quoteLocal(rYes, rNo, outcome, a);
+    return { a, out, cents: out > 0n ? Number((a * 10000n) / out) / 100 : null };
+  });
+  const base = rungs[0].cents;
+
+  return (
+    <div className={s.depth}>
+      <div className={s.depthHead}>Average price by size</div>
+      {rungs.map((r) => {
+        const slip = base && r.cents ? r.cents - base : 0;
+        return (
+          <div key={r.a.toString()} className={s.depthRow}>
+            <span className={s.depthSize}>{fmtStrk(r.a, 0)} STRK</span>
+            <span className={s.depthPrice}>
+              {r.cents === null ? "—" : `${r.cents.toFixed(1)}\u00a2`}
+            </span>
+            <span className={slip > 0.05 ? s.depthSlipOn : s.depthSlip}>
+              {slip > 0.05 ? `+${slip.toFixed(1)}\u00a2 slippage` : "at market"}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/**
+ * Export and restore the secret vault.
+ *
+ * The privacy design has one hard edge: a position is a secret in localStorage, so
+ * clearing site data burns the money and nobody — us included — can undo it. This
+ * is the cheapest possible insurance, and it stays offline: the file never leaves
+ * the browser.
+ */
+function Backup({ saved, onRestored }: { saved: SavedPosition[]; onRestored: () => void }) {
+  const file = useRef<HTMLInputElement>(null);
+  const [msg, setMsg] = useState<string>("");
+
+  function download() {
+    const blob = new Blob([exportPositions()], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    const stamp = new Date().toISOString().slice(0, 10);
+    a.download = `doom-positions-${stamp}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setMsg(`Saved ${saved.length} position${saved.length === 1 ? "" : "s"}.`);
+  }
+
+  async function restore(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    try {
+      const { added, skipped } = importPositions(await f.text());
+      setMsg(
+        added === 0
+          ? `Already had all ${skipped} of those.`
+          : `Restored ${added}${skipped ? `, skipped ${skipped} already here` : ""}.`,
+      );
+      onRestored();
+    } catch (err: unknown) {
+      setMsg((err as { message?: string })?.message ?? "Could not read that file.");
+    } finally {
+      e.target.value = "";
+    }
+  }
+
+  return (
+    <div className={s.backup}>
+      <button className={s.backupBtn} onClick={download} disabled={saved.length === 0}>
+        Back up
+      </button>
+      <button className={s.backupBtn} onClick={() => file.current?.click()}>
+        Restore
+      </button>
+      <input
+        ref={file}
+        type="file"
+        accept="application/json,.json"
+        onChange={restore}
+        style={{ display: "none" }}
+      />
+      {msg ? <span className={s.backupMsg}>{msg}</span> : null}
+    </div>
+  );
+}
+
 function Portfolio({
   saved,
   markets,
   onOpen,
+  onRestored,
 }: {
   saved: SavedPosition[];
   markets: Record<string, MarketState>;
   onOpen: (a: string) => void;
+  onRestored: () => void;
 }) {
+  const backup = <Backup saved={saved} onRestored={onRestored} />;
+
   if (saved.length === 0) {
     return (
       <div className={s.portfolio}>
@@ -168,21 +282,68 @@ function Portfolio({
           No bets from this browser yet. Positions are keyed by a secret, so they live
           here and nowhere else — not even the contract can list them for you.
         </p>
+        {backup}
       </div>
     );
   }
-  const rows = [...saved].reverse();
+
+  // Marked against the live price, so the panel answers "what is this worth now"
+  // rather than only "what did I pay".
+  const marks = saved.map((p) => positionValue(p, markets[p.market]));
+  const open = marks.filter((v) => v && v.status === "open");
+  const bookBasis = open.reduce((a, v) => a + v!.basis, 0n);
+  const bookValue = open.reduce((a, v) => a + v!.value, 0n);
+  const claimable = saved.reduce(
+    (a, p, i) => (marks[i]?.status === "won" ? a + marks[i]!.value : a),
+    0n,
+  );
+  const order = saved.map((p, i) => ({ p, v: marks[i] })).reverse();
   return (
     <div className={s.portfolio}>
       <div className={s.portfolioHead}>
         My bets<span className={s.portfolioCount}>{saved.length}</span>
       </div>
+
+      {(bookBasis > 0n || claimable > 0n) && (
+        <div className={s.bookRow}>
+          {bookBasis > 0n && (
+            <>
+              <span className={s.bookCell}>
+                <span className={s.bookLabel}>Open value</span>
+                <span className={s.bookValue}>{fmtStrk(bookValue)} STRK</span>
+              </span>
+              <span className={s.bookCell}>
+                <span className={s.bookLabel}>Cost</span>
+                <span className={s.bookValue}>{fmtStrk(bookBasis)} STRK</span>
+              </span>
+              <span className={s.bookCell}>
+                <span className={s.bookLabel}>Unrealised</span>
+                <span
+                  className={
+                    bookValue >= bookBasis ? `${s.bookValue} ${s.yes}` : `${s.bookValue} ${s.no}`
+                  }
+                >
+                  {bookValue >= bookBasis ? "+" : "−"}
+                  {fmtStrk(bookValue >= bookBasis ? bookValue - bookBasis : bookBasis - bookValue)}
+                </span>
+              </span>
+            </>
+          )}
+          {claimable > 0n && (
+            <span className={s.bookCell}>
+              <span className={s.bookLabel}>Claimable</span>
+              <span className={`${s.bookValue} ${s.yes}`}>{fmtStrk(claimable)} STRK</span>
+            </span>
+          )}
+        </div>
+      )}
+
       <div className={s.posList}>
-        {rows.map((p, i) => {
+        {order.map(({ p, v }, i) => {
           const m = markets[p.market];
-          const won = m?.resolved && m.winningOutcome === p.outcome;
-          const lost = m?.resolved && m.winningOutcome !== p.outcome && m.winningOutcome !== 2;
           const shares = p.shares ? BigInt(p.shares) : null;
+          const pct = v ? pnlPct(v) : null;
+          const up = v ? v.value >= v.basis : true;
           return (
             <button key={i} className={s.posRow} onClick={() => onOpen(p.market)}>
               <span className={s.posSide}>
@@ -193,9 +354,35 @@ function Portfolio({
               <span className={s.posQ}>{m?.question ?? p.market.slice(0, 18) + "…"}</span>
               <span className={s.posAmt}>
                 {shares ? `${fmtStrk(shares)} shares` : `${fmtStrk(BigInt(p.amount))} STRK`}
+                {v && (
+                  <span className={s.posMark}>
+                    {fmtStrk(v.value)} STRK
+                    {pct !== null && v.status === "open" && (
+                      <span className={up ? s.yes : s.no}>
+                        {" "}
+                        {up ? "+" : ""}
+                        {pct.toFixed(1)}%
+                      </span>
+                    )}
+                  </span>
+                )}
               </span>
-              <span className={won ? s.posWon : lost ? s.posLost : s.posOpen}>
-                {won ? "claimable" : lost ? "lost" : m?.resolved ? "void" : "open"}
+              <span
+                className={
+                  v?.status === "won"
+                    ? s.posWon
+                    : v?.status === "lost"
+                      ? s.posLost
+                      : s.posOpen
+                }
+              >
+                {v?.status === "won"
+                  ? "claimable"
+                  : v?.status === "lost"
+                    ? "lost"
+                    : v?.status === "void"
+                      ? "void"
+                      : "open"}
               </span>
             </button>
           );
@@ -203,8 +390,9 @@ function Portfolio({
       </div>
       <p className={s.portfolioNote}>
         These secrets exist only in this browser. Clear your site data and the bets
-        become unreachable by anyone, including us. Copy them somewhere safe.
+        become unreachable by anyone, including us.
       </p>
+      {backup}
     </div>
   );
 }
@@ -715,7 +903,12 @@ export default function Home() {
             </div>
 
             {showPortfolio && (
-              <Portfolio saved={saved} markets={markets} onOpen={selectMarket} />
+              <Portfolio
+                saved={saved}
+                markets={markets}
+                onOpen={selectMarket}
+                onRestored={() => setSaved(loadPositions())}
+              />
             )}
 
             <div className={s.board}>
@@ -901,6 +1094,10 @@ export default function Home() {
                               </span>
                             </div>
                           </div>
+                        )}
+
+                        {market.kind === "cpmm" && !settled && (
+                          <Depth market={market} outcome={outcome} />
                         )}
 
                         <button
