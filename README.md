@@ -7,6 +7,11 @@ betting is hidden, so the identity-based manipulation that shapes Polymarket doe
 happen. Built on [STRK20](https://strk20.starknet.io), the Starknet privacy pool, and
 live on mainnet.
 
+| | |
+|---|---|
+| **Demo** | https://neromtoobad.github.io/doom/ |
+| **Video** | https://youtu.be/zUd1gX9ZN9Q — three minutes, including a bet end to end |
+
 This is [RFP-07](https://github.com/starkience/strk20-hackathon/blob/main/IDEAS.md) —
 *"Prediction markets with visible odds and invisible bettors"* — plus a governance
 layer that the same primitive makes possible.
@@ -44,11 +49,50 @@ can be linked back to the bet that earned it. It still links neither to a person
 Timing correlation between shielding and betting is a real side channel this does not
 solve. The anonymity set is the STRK20 pool's, not Doom's alone.
 
+## How a bet works
+
+A market is a fixed-product market maker over binary outcome shares — the Gnosis
+conditional-token construction, not a pot to be split.
+
+```
+reserves          r_yes * r_no = k
+price of YES      r_no / (r_yes + r_no)      always in (0,1); both sides sum to 1
+buying `a` of YES mints a YES and a NO, keeps the YES, sells the NO into the pool
+                  shares_out = (r_yes + a) - k / (r_no + a)
+redemption        one winning share pays exactly 1 collateral
+```
+
+Two properties matter. The price *is* a probability, readable straight off chain, and
+every buy moves it, so the market aggregates information continuously rather than
+merely recording who staked what. And solvency holds by construction: each deposit
+mints one share of each side, so outstanding shares of either side can never exceed
+the collateral held. `the_market_can_always_pay_its_winners` is a test.
+
+The first generation was parimutuel — bet into a pot, "odds" were the pot ratio, and
+you were locked in until resolution. That is horse-racing betting, not a prediction
+market. Five of those markets are still live and still settling; the eight newer ones
+are share markets.
+
+### The privacy path
+
+```
+your wallet ──shield──▶ STRK20 pool ──privacy_invoke──▶ Doom market
+                        (holds a note)                  (CPMM)
+```
+
+The pool is always the caller, so the market contract never sees an address — it
+cannot, because there is no address in the call. Collateral is measured as the
+contract's own balance delta, never taken from calldata, so a caller cannot claim to
+have sent more than it did. The position is keyed by
+`poseidon('DOOM_POSITION_TAG:V1', secret)`.
+
 ## The contracts
 
 | contract | role |
 |---|---|
-| **`DoomMarketV2`** | The prediction market, implemented as a STRK20 anonymizer. Per-question state: outcomes, `closes_at` deadline, per-outcome volume. `privacy_invoke` handles bet and claim. Bets arrive as pool withdrawals and are measured by balance delta, never trusted from calldata. Winners claim parimutuel payouts straight back into shielded notes. |
+| **`DoomPredictionMarket`** | The product. A fixed-product market maker over binary outcome shares, implemented as a STRK20 anonymizer. `privacy_invoke` handles buy and claim; `quote()` prices a fill before it is committed to; `add_liquidity` / `withdraw_liquidity` seed and recover the market maker. Settlement is bonded-optimistic. |
+| `DoomMarketV2` | The earlier parimutuel generation, with a `closes_at` deadline and the same bonded settlement. Kept because markets deployed against it are still live. |
+| `DoomMarket` | The first parimutuel draft. No deadline, one named resolver. Superseded. |
 | **`DoomDecision`** | The governance layer. Two conditional markets — *"if we adopt, will the metric be met?"* / *"if we reject, will it?"* — and `decide()`, callable by anyone, records whichever priced success higher. The losing branch voids and refunds. |
 | `StrkInvokeHelper` | Upstream echo reference, kept verbatim for provenance. |
 
@@ -70,7 +114,24 @@ close  →  anyone posts a bond and proposes an outcome
 `the_arbiter_cannot_touch_an_uncontested_market` is a test, not a promise.
 
 **Not yet built:** Pragma oracle binding for price-resolved markets. Doom currently
-covers the non-price path only.
+covers the non-price path only. Because `propose()` is permissionless, an oracle
+resolver can be added later without redeploying any existing market.
+
+## In the app
+
+- **Live pricing.** Every card shows a price in cents. The trade panel calls the
+  contract's own `quote()`, so the number on screen is the number the buy delivers.
+- **Depth.** A single quote hides the shape of the curve, so the panel prices 1, 5 and
+  25 STRK at once. Computed locally from the reserves with the contract's formula; it
+  agrees with `quote()` to the wei.
+- **Mark to market.** Positions show what they are worth now, not only what they cost:
+  `shares x side price` on a share market, or the payout the current pots imply on a
+  parimutuel one.
+- **Backup.** A position is a secret in one browser's storage, so clearing site data
+  destroys the funds and no on-chain data can rebuild the secret. The vault exports to
+  a file and imports back; re-importing is idempotent. The file never leaves the
+  browser.
+- **Probability history**, rebuilt from each market's own `Bought` events.
 
 ## Governance, as an extension
 
@@ -98,11 +159,22 @@ the voters are not, and the `Decided` event has no authorized signer in it.
 | | |
 |---|---|
 | STRK20 pool | `0x040337b1af3c663e86e333bab5a4b28da8d4652a15a69beee2b677776ffe812a` |
-| Markets | six deployed — [`cairo/address.md`](cairo/address.md) |
-| Demo | https://neromtoobad.github.io/doom/ |
+| Markets | 13 — eight share markets, five earlier parimutuel ones. Addresses in [`cairo/address.md`](cairo/address.md) and [`src/utils/constants.ts`](src/utils/constants.ts) |
+| Contracts | 14, listed in [`strk20.json`](strk20.json) |
+| Settled so far | one, paying its winner the whole pot |
 
 Verified mainnet transactions, each carrying both a pool event and a market event, are
-listed in [`strk20.json`](strk20.json).
+listed in [`strk20.json`](strk20.json). Their senders are four different relayer
+accounts — none of them the bettor's wallet, which is the whole point.
+
+## Repository
+
+| path | what it is |
+|---|---|
+| `cairo/` | The contracts and their tests. |
+| `src/` | The Next.js app: board, trade panel, portfolio, resolution. |
+| `video/` | The Remotion project the demo video is built from — see [`video/README.md`](video/README.md). |
+| `strk20.json` | The submission manifest: transactions, contracts, demo, video. |
 
 ## Run it
 
@@ -112,13 +184,13 @@ cp .env.example .env.local   # add your Alchemy Starknet key
 yarn dev                     # localhost:3000
 ```
 
-Cairo — 37 tests:
+Cairo — 55 tests:
 
 ```bash
 cd cairo && scarb build && snforge test
 ```
 
-Toolchain: node 24.0.2, scarb 2.18.0, starknet-foundry 0.63.0.
+Toolchain: node 24, scarb 2.18.0, starknet-foundry 0.63.0.
 Stack: Next.js 16 · React 19 · TypeScript 5.9 · starknet.js 10.4.0 · Cairo `2024_07`.
 
 ## AI tools
