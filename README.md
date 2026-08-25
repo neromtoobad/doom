@@ -86,6 +86,30 @@ contract's own balance delta, never taken from calldata, so a caller cannot clai
 have sent more than it did. The position is keyed by
 `poseidon('DOOM_POSITION_TAG:V1', secret)`.
 
+## The STRK20 stack
+
+What Doom is actually built on, named precisely. Every item here is exercised by
+the live app on mainnet, not aspirational.
+
+| piece | how Doom uses it |
+|---|---|
+| **STRK20 privacy pool** | Holds the collateral. A bet is a pool `withdraw` to the market contract, so the stake arrives from the pool rather than from a wallet. Pool address `0x040337b1af3c663e86e333bab5a4b28da8d4652a15a69beee2b677776ffe812a`. |
+| **Anonymizer contract** | `DoomPredictionMarket`, `DoomMarketV2` and `DoomMarket` are STRK20 anonymizers. Each exposes **`privacy_invoke`**, which only the pool may call, and returns `OpenNoteDeposit` spans describing the notes a payout lands in. |
+| **STRK20 Wallet API** | The dapp route, so viewing keys never leave the wallet. Doom calls **`strk20InvokeTransaction`** to submit action lists and **`strk20Balances`** to read the shielded balance. Types come from `@starknet-io/types-js`; the wallet methods from `starknet` 10.4. |
+| **`STRK20_ACTION` action lists** | A bet is `withdraw` → `invoke`. A claim is `transfer` with `amount: "OPEN"` → `invoke`, where the literal `${openNoteIds[0]}` placeholder is substituted by the wallet during assembly. |
+| **Relayed submission** | Private transactions are relayed, so the on-chain `sender_address` is a relayer account and never the bettor. The four hashes in `strk20.json` have four different senders, none of them ours. |
+| **Shielded notes** | Winnings are approved to the pool and land back inside a note. A payout never touches a public balance unless the winner unshields it. |
+
+### What Doom deliberately does not use
+
+- **The Privacy SDK** (`@starkware-libs/starknet-privacy-sdk`). It is the route for
+  wallets and key-holding backends. Doom is a dapp on top of existing wallets, so
+  the Wallet API is the correct integration and the viewing key stays in Ready.
+- **Sub-accounts / shadow accounts, a self-hosted prover, and note discovery.**
+  None are needed: positions key off a Poseidon commitment rather than an account,
+  and the wallet handles discovery.
+- **AVNU, Ekubo, Vesu.** Doom is its own market maker; there is no venue to route to.
+
 ## The contracts
 
 | contract | role |
