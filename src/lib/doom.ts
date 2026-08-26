@@ -18,7 +18,7 @@ export const MARKET = constants.DoomMarkets[0];
 export const TOKEN = constants.addrSTRK;
 
 /** Matches DOOM_POSITION_TAG in cairo/src/doom_market.cairo. Domain separation. */
-const POSITION_TAG = shortString.encodeShortString("DOOM_POSITION_TAG:V1");
+export const POSITION_TAG = shortString.encodeShortString("DOOM_POSITION_TAG:V1");
 
 export const OUTCOME_NO = 0;
 export const OUTCOME_YES = 1;

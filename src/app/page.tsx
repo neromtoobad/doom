@@ -5,6 +5,7 @@ import Link from "next/link";
 import { num, type ProviderInterface, type WalletAccountV6 } from "starknet";
 import s from "./market.module.css";
 import Nav from "./components/Nav";
+import { derivedSecret } from "@/lib/vault";
 import { TOKEN_ART } from "./components/TokenIcons";
 import DecisionPanel from "./DecisionPanel";
 import SelectWallet from "./components/client/WalletHandle/SelectWallet";
@@ -669,6 +670,20 @@ function Hero({
   );
 }
 
+/**
+ * The first derivation slot this wallet has not already spent on this market.
+ *
+ * Reusing a slot would compute a commitment the contract already holds and the buy
+ * would revert, so this walks forward past whatever is already known locally.
+ */
+function nextSlot(master: string, market: string, saved: SavedPosition[]): number {
+  const used = new Set(saved.filter((p) => p.market === market).map((p) => p.secret));
+  for (let i = 0; i < 64; i++) {
+    if (!used.has(derivedSecret(master, market, i))) return i;
+  }
+  return 64;
+}
+
 export default function Home() {
   const myWalletAccount = useStoreWallet((st) => st.myWalletAccount);
   const address = useStoreWallet((st) => st.address);
@@ -696,6 +711,10 @@ export default function Home() {
   // The pool charges a flat fee per private operation. At these stake sizes it is
   // the dominant cost, so the panel has to say it before the user signs.
   const [poolFee, setPoolFee] = useState<bigint | null>(null);
+  // The wallet-derived master key, once the user has unlocked it this session. New
+  // bets key off it so they can be recovered on any device; without it we fall back
+  // to a random secret that only this browser will ever know.
+  const [master, setMaster] = useState<string | null>(null);
 
   const provider = constants.myFrontendProviders[0]; // mainnet
 
@@ -882,7 +901,12 @@ export default function Home() {
     }
     if (wei <= 0n) return setResult({ kind: "err", msg: "Amount must be greater than zero." });
 
-    const secret = randomSecret();
+    // A derived secret can be rebuilt from the wallet on any machine. A random one
+    // exists only in this browser's storage, which is why the vault has to be
+    // exported. Prefer the first whenever the key has been unlocked.
+    const secret = master
+      ? derivedSecret(master, market.address, nextSlot(master, market.address, saved))
+      : randomSecret();
     const commitment = computeCommitment(secret);
     setFreshSecret(secret);
     setResult({ kind: "pending", msg: "Confirm in your wallet…" });

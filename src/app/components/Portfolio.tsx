@@ -131,8 +131,9 @@ export default function Portfolio({
       <div className={s.portfolio}>
         <div className={s.portfolioHead}>My bets</div>
         <p className={s.portfolioEmpty}>
-          No bets from this browser yet. Positions are keyed by a secret, so they live
-          here and nowhere else — not even the contract can list them for you.
+          No bets found yet. Positions are keyed by a secret rather than an account, so
+          nothing on chain lists them — unlock with your wallet above and Doom rebuilds
+          the keys, or restore a backup.
         </p>
         {backup}
       </div>
@@ -241,8 +242,9 @@ export default function Portfolio({
         })}
       </div>
       <p className={s.portfolioNote}>
-        These secrets exist only in this browser. Clear your site data and the bets
-        become unreachable by anyone, including us.
+        Bets made with a wallet-derived key can be rebuilt by signing again, on any
+        device. Older ones exist only in this browser — clear your site data and those
+        become unreachable by anyone, including us, so export them.
       </p>
       {backup}
     </div>

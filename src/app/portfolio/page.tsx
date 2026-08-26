@@ -22,11 +22,15 @@ import {
 } from "@/lib/doom";
 import { loadUserMarkets, normalizeAddress } from "@/lib/create";
 import Portfolio from "../components/Portfolio";
+import WalletVault from "../components/WalletVault";
+import { useStoreWallet } from "../components/Wallet/walletContext";
 
 export default function PortfolioPage() {
   const provider = constants.myFrontendProviders[0]; // mainnet
   const [saved, setSaved] = useState<SavedPosition[]>([]);
   const [markets, setMarkets] = useState<Record<string, MarketState>>({});
+  const account = useStoreWallet((st) => st.myWalletAccount);
+  const address = useStoreWallet((st) => st.address);
 
   const refresh = useCallback(async () => {
     const positions = loadPositions();
@@ -70,9 +74,18 @@ export default function PortfolioPage() {
       <div className={p.wrap}>
         <h1 className={p.title}>Portfolio</h1>
         <p className={p.lede}>
-          Positions live in this browser and nowhere else — they key off a secret, not
-          an account, so no server can list them for you. Back them up.
+          A position keys off a secret, not an account, so nothing on chain says it is
+          yours. Sign once and Doom rebuilds those secrets from your wallet, on any
+          device. Bets made before this existed live only in the browser that made
+          them — export those.
         </p>
+
+        <WalletVault
+          account={account as never}
+          address={address}
+          onMaster={() => {}}
+          onRecovered={refresh}
+        />
 
         {claimable > 0n && (
           <div className={p.claim}>
