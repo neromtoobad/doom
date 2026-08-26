@@ -10,6 +10,14 @@ import SelectWallet from "./components/client/WalletHandle/SelectWallet";
 import { useStoreWallet } from "./components/Wallet/walletContext";
 import * as constants from "@/utils/constants";
 import {
+  loadUserMarkets,
+  removeUserMarket,
+  normalizeAddress,
+  saveUserMarket,
+  verifyMarket,
+  type UserMarket,
+} from "@/lib/create";
+import {
   DECISIONS,
   MARKETS,
   decideCall,
@@ -608,12 +616,26 @@ export default function Home() {
   const [sort, setSort] = useState<"volume" | "closing" | "new">("volume");
   const [showPortfolio, setShowPortfolio] = useState(false);
   const [query, setQuery] = useState("");
+  // Markets this browser created or pinned. There is no global index, so the board
+  // is the curated list plus whatever the user chose to keep.
+  const [userMarkets, setUserMarkets] = useState<UserMarket[]>([]);
+  const [pinAddr, setPinAddr] = useState("");
+  const [pinMsg, setPinMsg] = useState("");
+  const [shared, setShared] = useState(false);
 
   const provider = constants.myFrontendProviders[0]; // mainnet
 
   const refresh = useCallback(async () => {
+    const all = [...MARKETS, ...loadUserMarkets().map((m) => normalizeAddress(m.address))];
+    const seen = new Set<string>();
+    const list = all.filter((a) => {
+      const k = normalizeAddress(a);
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
     const entries = await Promise.all(
-      MARKETS.map(async (addr) => {
+      list.map(async (addr) => {
         try {
           return [addr, await readMarket(provider, addr)] as const;
         } catch {
@@ -639,11 +661,41 @@ export default function Home() {
 
   useEffect(() => {
     setSaved(loadPositions());
+    setUserMarkets(loadUserMarkets());
+    // A shared link carries a bare address. Anything that reads as a market opens,
+    // whether or not this build shipped with it listed.
     const h = window.location.hash.replace("#", "");
-    if (h && MARKETS.includes(h)) setSelected(h);
+    if (h) {
+      try {
+        setSelected(normalizeAddress(h));
+      } catch {
+        /* not an address */
+      }
+    }
   }, []);
 
-  const all = MARKETS.map((a) => markets[a]).filter(Boolean) as MarketState[];
+  // A link can name a market this build never shipped and the user has not pinned.
+  // Read it on its own so a shared market opens for someone seeing it first time.
+  useEffect(() => {
+    if (!selected || markets[selected]) return;
+    let dead = false;
+    readMarket(provider, selected)
+      .then((m) => {
+        if (!dead) setMarkets((prev) => ({ ...prev, [selected]: m }));
+      })
+      .catch(() => {});
+    return () => {
+      dead = true;
+    };
+  }, [selected, markets, provider]);
+
+  const boardAddrs = [
+    ...MARKETS,
+    ...userMarkets
+      .map((m) => normalizeAddress(m.address))
+      .filter((a) => !MARKETS.some((c) => normalizeAddress(c) === a)),
+  ];
+  const all = boardAddrs.map((a) => markets[a]).filter(Boolean) as MarketState[];
 
   const CRYPTO = /\b(BTC|ETH|SOL|XRP|DOGE)\b/;
   const STARKNET = /\b(STRK|Starknet|strk20)\b/i;
@@ -900,6 +952,44 @@ export default function Home() {
               >
                 My bets{saved.length > 0 ? ` (${saved.length})` : ""}
               </button>
+              <a className={`${s.pill} ${s.pillCta}`} href="create/">
+                + Open a market
+              </a>
+            </div>
+
+            <div className={s.pinRow}>
+              <input
+                className={s.pinInput}
+                value={pinAddr}
+                onChange={(e) => {
+                  setPinAddr(e.target.value);
+                  setPinMsg("");
+                }}
+                placeholder="Pin a market someone sent you — paste its address"
+                aria-label="Pin a market by address"
+              />
+              <button
+                className={s.pinBtn}
+                disabled={!pinAddr.trim()}
+                onClick={async () => {
+                  setPinMsg("Reading…");
+                  const r = await verifyMarket(provider, pinAddr);
+                  if (!r.ok) return setPinMsg(r.why);
+                  saveUserMarket({
+                    address: normalizeAddress(pinAddr),
+                    question: r.question,
+                    mine: false,
+                    at: Date.now(),
+                  });
+                  setUserMarkets(loadUserMarkets());
+                  setPinAddr("");
+                  setPinMsg(`Pinned "${r.question.slice(0, 44)}…"`);
+                  refresh();
+                }}
+              >
+                Pin
+              </button>
+              {pinMsg ? <span className={s.pinMsg}>{pinMsg}</span> : null}
             </div>
 
             {showPortfolio && (
@@ -960,6 +1050,22 @@ export default function Home() {
           <>
             <button className={s.back} onClick={() => selectMarket(null)}>
               ← All markets
+            </button>
+            <button
+              className={s.shareBtn}
+              onClick={async () => {
+                const url = `${window.location.origin}${window.location.pathname}#${market.address}`;
+                try {
+                  await navigator.clipboard.writeText(url);
+                  setShared(true);
+                  setTimeout(() => setShared(false), 1800);
+                } catch {
+                  // Clipboard can be blocked; showing the link still lets them copy it.
+                  window.prompt("Copy this link", url);
+                }
+              }}
+            >
+              {shared ? "Link copied" : "Share"}
             </button>
 
             <div className={s.grid}>
