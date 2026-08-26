@@ -231,14 +231,31 @@ accounts — none of them the bettor's wallet, which is the whole point.
 Nothing here asks to be believed. Every claim above is checkable from a terminal.
 
 ```bash
-# The four submitted transactions: succeeded, carry a pool event, and each ran
-# through a Doom contract — with four different relayer senders, none of them ours.
-node video/capture/chaindata.mjs
+yarn verify
+```
 
-# The pool fee that dominates the economics, straight from the pool.
-#   -> 6.00 STRK
-# The Pragma median the settlement panel reads.
-#   -> BTC/USD, 11 sources
+Eight checks against mainnet — every submitted transaction succeeded and carries both
+a pool event and a Doom contract event, its senders are four different relayers, all
+thirteen markets answer, the settled one holds enough to pay its winner, the
+market-maker class is declared, the pool fee is what this README says, and Pragma is
+publishing the pairs the templates offer. Each prints the number it found rather than
+a tick, so you can disagree with the figure instead of the verdict. Non-zero exit if
+anything fails.
+
+```
+Transactions
+  PASS  all submitted transactions succeeded — 4 of 4
+  PASS  each carries a pool event and runs through a Doom contract
+  PASS  senders are relayers, all different — 4 distinct senders
+
+Markets
+  PASS  every listed market answers — 13 markets, 8 of them share markets
+  PASS  the settled market resolved and can pay its winner — settled NO, pot 4.00 STRK, holds 4.00 STRK
+
+Integration
+  PASS  the market-maker class is declared on mainnet
+  PASS  the pool fee is what the README says — 6.00 STRK per private operation
+  PASS  Pragma publishes the pairs the templates offer — BTC, ETH, STRK
 ```
 
 | claim | where to check it |
@@ -255,6 +272,7 @@ node video/capture/chaindata.mjs
 |---|---|
 | `cairo/` | The contracts and their tests. |
 | `src/` | The Next.js app: board, trade panel, portfolio, resolution. |
+| `scripts/verify.mjs` | `yarn verify` — checks this README against mainnet. |
 | `tests/` | The client suite — the curve, valuation, the oracle parser, the secret vault. |
 | `video/` | Source for the demo video, and the script that reads the submitted transactions back off chain. |
 | `strk20.json` | The submission manifest: transactions, contracts, demo, video. |
