@@ -2,13 +2,21 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { num } from "starknet";
+import { num, type ProviderInterface, type WalletAccountV6 } from "starknet";
 import s from "./market.module.css";
 import markImg from "../../public/brand/mark-96.png";
 import DecisionPanel from "./DecisionPanel";
 import SelectWallet from "./components/client/WalletHandle/SelectWallet";
 import { useStoreWallet } from "./components/Wallet/walletContext";
 import * as constants from "@/utils/constants";
+import {
+  finalizeCall,
+  oracleVerdict,
+  proposeCalls,
+  readSettlement,
+  type Settlement,
+  type Verdict,
+} from "@/lib/pragma";
 import {
   loadUserMarkets,
   removeUserMarket,
@@ -482,6 +490,187 @@ function marketIcon(q: string): string | null {
  * Source of truth, who may settle, the challenge window, and what happens on a
  * dispute — the questions someone asks before risking money.
  */
+/**
+ * What the oracle says, and the buttons that act on it.
+ *
+ * The contracts settle by bonded human proposal and cannot read a feed - they were
+ * deployed without one. So this reads Pragma in the browser, states the answer its
+ * current median implies, and pre-fills the proposal. Oracle-informed, not
+ * oracle-enforced, and the panel says so rather than implying a binding that a judge
+ * would find missing.
+ */
+function OracleSettle({
+  market,
+  provider,
+  account,
+  address,
+  onDone,
+}: {
+  market: MarketState;
+  provider: ProviderInterface;
+  account: WalletAccountV6 | undefined;
+  address: string;
+  onDone: () => void;
+}) {
+  const [verdict, setVerdict] = useState<Verdict | null>(null);
+  const [settle, setSettle] = useState<Settlement | null>(null);
+  const [busy, setBusy] = useState("");
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  useEffect(() => {
+    let dead = false;
+    setVerdict(null);
+    setSettle(null);
+    oracleVerdict(provider, market.question).then((v) => !dead && setVerdict(v));
+    readSettlement(provider, market.address).then((x) => !dead && setSettle(x));
+    return () => {
+      dead = true;
+    };
+  }, [provider, market.address, market.question]);
+
+  if (market.resolved || !market.isV2) return null;
+
+  const now = Date.now() / 1000;
+  const closed = market.closesAt !== null && now >= market.closesAt;
+  const proposed = settle !== null && settle.proposedOutcome !== 255;
+  const windowOver =
+    proposed && settle !== null && now >= settle.proposedAt + settle.challengeWindow;
+
+  async function send(calls: ReturnType<typeof proposeCalls>, label: string) {
+    if (!account) return setMsg({ ok: false, text: "Connect a wallet first." });
+    setBusy(label);
+    setMsg(null);
+    try {
+      const r = await account.execute(calls);
+      await provider.waitForTransaction(r.transaction_hash);
+      setMsg({ ok: true, text: `${label} confirmed.` });
+      onDone();
+      readSettlement(provider, market.address).then(setSettle);
+    } catch (e: unknown) {
+      setMsg({ ok: false, text: (e as { message?: string })?.message ?? String(e) });
+    } finally {
+      setBusy("");
+    }
+  }
+
+  return (
+    <div className={s.oracle}>
+      <div className={s.oracleHead}>
+        <span className={s.oracleTitle}>Pragma</span>
+        <span className={s.oracleTag}>oracle-informed</span>
+      </div>
+
+      {verdict ? (
+        <>
+          <div className={s.oracleReading}>
+            <span className={s.oraclePair}>{verdict.pair}</span>
+            <span className={s.oraclePrice}>
+              ${verdict.median.price.toLocaleString(undefined, { maximumFractionDigits: 4 })}
+            </span>
+            <span className={s.oracleMeta}>
+              median of {verdict.median.sources} sources ·{" "}
+              {new Date(verdict.median.updatedAt * 1000).toUTCString().slice(17, 22)} UTC
+            </span>
+          </div>
+          <div className={s.oracleVerdict}>
+            Against a ${verdict.threshold.toLocaleString()} strike, that resolves{" "}
+            <b className={verdict.answer === "YES" ? s.yes : s.no}>{verdict.answer}</b>
+            {!closed && " — if it closed right now."}
+          </div>
+        </>
+      ) : (
+        <div className={s.oracleMeta}>
+          No Pragma feed matches this question, so settlement here is a human claim
+          backed by a bond.
+        </div>
+      )}
+
+      {closed && settle && (
+        <div className={s.oracleActions}>
+          {!proposed && (
+            <>
+              <button
+                className={s.oracleBtn}
+                disabled={!!busy || !account}
+                onClick={() =>
+                  send(
+                    proposeCalls(market.address, verdict?.answer === "YES" ? 1 : 0, settle.bond),
+                    "Proposal",
+                  )
+                }
+              >
+                {busy || `Propose ${verdict ? verdict.answer : "YES"}`}
+              </button>
+              {verdict && (
+                <button
+                  className={s.oracleGhost}
+                  disabled={!!busy || !account}
+                  onClick={() =>
+                    send(
+                      proposeCalls(market.address, verdict.answer === "YES" ? 0 : 1, settle.bond),
+                      "Proposal",
+                    )
+                  }
+                >
+                  Propose {verdict.answer === "YES" ? "NO" : "YES"} instead
+                </button>
+              )}
+              <span className={s.oracleMeta}>
+                {settle.bond > 0n
+                  ? `Stakes a ${fmtStrk(settle.bond)} STRK bond, returned when it finalises.`
+                  : "No bond on this market — proposing is free."}
+              </span>
+            </>
+          )}
+
+          {proposed && !windowOver && (
+            <span className={s.oracleMeta}>
+              {settle.proposedOutcome === 1 ? "YES" : settle.proposedOutcome === 0 ? "NO" : "VOID"}{" "}
+              proposed. Disputable until{" "}
+              {new Date((settle.proposedAt + settle.challengeWindow) * 1000)
+                .toUTCString()
+                .replace("GMT", "UTC")}
+              .
+            </span>
+          )}
+
+          {proposed && windowOver && !settle.disputed && (
+            <>
+              <button
+                className={s.oracleBtn}
+                disabled={!!busy || !account}
+                onClick={() => send(finalizeCall(market.address), "Finalise")}
+              >
+                {busy || "Finalise"}
+              </button>
+              <span className={s.oracleMeta}>
+                Challenge window closed unchallenged. Anyone can finalise.
+              </span>
+            </>
+          )}
+
+          {settle.disputed && (
+            <span className={s.oracleMeta}>
+              Disputed. The arbiter rules, and the wrong side forfeits its bond.
+            </span>
+          )}
+        </div>
+      )}
+
+      {!closed && (
+        <div className={s.oracleMeta}>
+          Betting is still open, so nothing can be proposed yet.
+        </div>
+      )}
+
+      {msg && (
+        <div className={msg.ok ? s.oracleOk : s.oracleErr}>{msg.text}</div>
+      )}
+      {address ? null : null}
+    </div>
+  );
+}
+
 function Resolution({ market }: { market: MarketState }) {
   const closes =
     market.closesAt === null
@@ -516,8 +705,9 @@ function Resolution({ market }: { market: MarketState }) {
         </dd>
         <dt>Source of truth</dt>
         <dd>
-          The question names a public, checkable fact. Nothing here reads an oracle
-          yet, so settlement is a human claim backed by a bond rather than a feed.
+          The question names a public, checkable fact. For price questions the panel
+          reads Pragma and pre-fills the proposal, but the contract does not verify a
+          feed — settlement is a bonded human claim either way.
         </dd>
       </dl>
     </section>
@@ -664,14 +854,22 @@ export default function Home() {
     setUserMarkets(loadUserMarkets());
     // A shared link carries a bare address. Anything that reads as a market opens,
     // whether or not this build shipped with it listed.
-    const h = window.location.hash.replace("#", "");
-    if (h) {
+    //
+    // The listener matters: pasting a second link into an already-open tab is a
+    // same-document navigation, so without it the URL changes and the page keeps
+    // showing the previous market.
+    const open = () => {
+      const h = window.location.hash.replace("#", "");
+      if (!h) return;
       try {
         setSelected(normalizeAddress(h));
       } catch {
         /* not an address */
       }
-    }
+    };
+    open();
+    window.addEventListener("hashchange", open);
+    return () => window.removeEventListener("hashchange", open);
   }, []);
 
   // A link can name a market this build never shipped and the user has not pinned.
@@ -1126,6 +1324,13 @@ export default function Home() {
                   </div>
                 </article>
 
+                <OracleSettle
+                  market={market}
+                  provider={provider}
+                  account={myWalletAccount}
+                  address={address}
+                  onDone={refresh}
+                />
                 <Resolution market={market} />
               </div>
 

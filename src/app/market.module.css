@@ -746,3 +746,57 @@
   padding: 7px 15px; font-size: 12.5px; cursor: pointer; font-family: inherit;
 }
 .shareBtn:hover { color: var(--text); border-color: #3a3a42; }
+
+/* ── oracle-informed settlement ──────────────────────────────────────────── */
+.oracle {
+  margin-top: 18px; padding: 18px 20px;
+  border: 1px solid var(--line); border-radius: 14px;
+  background: linear-gradient(180deg, rgba(255,107,53,0.05) 0%, rgba(0,0,0,0) 70%);
+}
+.oracleHead { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.oracleTitle {
+  font-family: var(--font-display), sans-serif; font-weight: 700;
+  font-size: 15px; letter-spacing: -0.01em; color: var(--text);
+}
+.oracleTag {
+  font-family: var(--font-mono-ui), monospace; font-size: 10px;
+  letter-spacing: 0.13em; text-transform: uppercase;
+  color: var(--accent); border: 1px solid rgba(255,107,53,0.35);
+  border-radius: 99px; padding: 3px 9px;
+}
+.oracleReading { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.oraclePair {
+  font-family: var(--font-mono-ui), monospace; font-size: 12px;
+  color: var(--muted); letter-spacing: 0.08em;
+}
+.oraclePrice {
+  font-family: var(--font-display), sans-serif; font-weight: 700;
+  font-size: 26px; color: var(--text); letter-spacing: -0.02em;
+}
+.oracleMeta {
+  font-size: 12px; color: var(--muted); line-height: 1.6;
+  font-family: var(--font-mono-ui), monospace;
+}
+.oracleVerdict { margin-top: 10px; font-size: 14px; color: var(--text); line-height: 1.55; }
+.oracleActions {
+  margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line);
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+}
+.oracleBtn {
+  background: var(--accent); color: #140b07; border: none; border-radius: 9px;
+  padding: 10px 18px; font-family: inherit; font-size: 13.5px; font-weight: 750;
+  cursor: pointer;
+}
+.oracleBtn:disabled { opacity: 0.45; cursor: default; }
+.oracleGhost {
+  background: transparent; color: var(--muted); border: 1px solid var(--line);
+  border-radius: 9px; padding: 10px 16px; font-family: inherit; font-size: 13px;
+  cursor: pointer;
+}
+.oracleGhost:hover:not(:disabled) { color: var(--text); border-color: #3a3a42; }
+.oracleGhost:disabled { opacity: 0.45; cursor: default; }
+.oracleOk, .oracleErr {
+  margin-top: 12px; border-radius: 9px; padding: 10px 13px; font-size: 12.5px; line-height: 1.55;
+}
+.oracleOk { border: 1px solid rgba(34,197,94,0.3); background: rgba(34,197,94,0.08); color: #96e8b6; }
+.oracleErr { border: 1px solid rgba(239,68,68,0.3); background: rgba(239,68,68,0.08); color: #ffabab; }
