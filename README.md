@@ -157,6 +157,41 @@ resolver can be added later without redeploying any existing market.
   browser.
 - **Probability history**, rebuilt from each market's own `Bought` events.
 
+## What a bet actually costs
+
+The STRK20 pool charges a **flat fee per private operation** — 6 STRK on mainnet at
+the time of writing, read from the pool's `get_fee_amount` rather than hardcoded,
+because it is governance-set and has moved before.
+
+This is not a footnote. It dominates the economics at the sizes a hackathon demo
+invites, and it is charged per *operation*, not per STRK. Measured from Doom's own
+1 STRK bet, transaction
+[`0x261d9a8f…`](https://voyager.online/tx/0x261d9a8f3e950b672607d5ba3fa919aab3c705f304bae23f5e1fdac3b76cebb),
+the pool moved 1 STRK to the market and 6 STRK to the fee collector.
+
+Buying YES on the live BTC market, whose reserves are 9.09 YES / 11.00 NO:
+
+| stake | shares if you win | + pool fee | total out | return |
+|---|---|---|---|---|
+| 1 STRK | 1.76 | 6.00 | 7.00 | **−74.9%** |
+| 5 STRK | 7.84 | 6.00 | 11.00 | −28.7% |
+| 20 STRK | 25.87 | 6.00 | 26.00 | −0.5% |
+| 40 STRK | 47.13 | 6.00 | 46.00 | +2.5% |
+
+On that book the fee is only covered somewhere past 20 STRK, so **a smaller bet loses
+money even when it is right**. The exact crossing point moves with the reserves —
+deeper books cover the fee sooner — but on every market Doom has deployed it sits far
+above the stake a first-time user would choose.
+
+The trade panel says exactly that, and refuses to dress the number up: it shows the
+fee, the total cost, and a return computed net of it. An earlier version
+showed `+75.8%` on the first row of that table, which was the opposite of the truth.
+
+Two consequences worth stating plainly. Doom's own board is mostly untraded, and this
+is why — not a missing feature. And any design that assumes cheap, frequent private
+operations is wrong on this chain today; batching is worth more here than anywhere,
+which is what puts a batched claim near the top of the roadmap.
+
 ## Governance, as an extension
 
 Futarchy — decide by market instead of by vote — is live this year on Solana via
@@ -191,13 +226,37 @@ Verified mainnet transactions, each carrying both a pool event and a market even
 listed in [`strk20.json`](strk20.json). Their senders are four different relayer
 accounts — none of them the bettor's wallet, which is the whole point.
 
+## Verify it yourself
+
+Nothing here asks to be believed. Every claim above is checkable from a terminal.
+
+```bash
+# The four submitted transactions: succeeded, carry a pool event, and each ran
+# through a Doom contract — with four different relayer senders, none of them ours.
+node video/capture/chaindata.mjs
+
+# The pool fee that dominates the economics, straight from the pool.
+#   -> 6.00 STRK
+# The Pragma median the settlement panel reads.
+#   -> BTC/USD, 11 sources
+```
+
+| claim | where to check it |
+|---|---|
+| Markets are live and priced | [`src/utils/constants.ts`](src/utils/constants.ts) — call `get_price_yes` on any of them |
+| Solvency holds | `cd cairo && snforge test` |
+| The client's curve matches the contract | `yarn test` — `tests/curve.test.ts` pins six mainnet vectors |
+| Senders are relayers, not the bettor | [`strk20.json`](strk20.json), then any explorer |
+| A market settled and paid | `0x0205a8ad…f432c4` — `is_resolved`, `get_winning_outcome`, `get_pots` |
+
 ## Repository
 
 | path | what it is |
 |---|---|
 | `cairo/` | The contracts and their tests. |
 | `src/` | The Next.js app: board, trade panel, portfolio, resolution. |
-| `video/` | The Remotion project the demo video is built from — see [`video/README.md`](video/README.md). |
+| `tests/` | The client suite — the curve, valuation, the oracle parser, the secret vault. |
+| `video/` | Source for the demo video, and the script that reads the submitted transactions back off chain. |
 | `strk20.json` | The submission manifest: transactions, contracts, demo, video. |
 
 ## Run it
@@ -216,6 +275,136 @@ cd cairo && scarb build && snforge test
 
 Toolchain: node 24, scarb 2.18.0, starknet-foundry 0.63.0.
 Stack: Next.js 16 · React 19 · TypeScript 5.9 · starknet.js 10.4.0 · Cairo `2024_07`.
+
+## Testing
+
+**86 tests: 55 in Cairo, 31 in TypeScript.** CI runs both before the build, so a
+failure stops the deploy rather than shipping a page that quotes wrong numbers.
+
+```bash
+cd cairo && snforge test     # 55
+yarn test                    # 31
+```
+
+The Cairo suite covers the parts where a contract bug costs money: solvency
+(`the_market_can_always_pay_its_winners`), quote/fill agreement
+(`a_quote_matches_what_the_buy_actually_pays`), stranded liquidity
+(`the_liquidity_provider_gets_their_capital_back`), staking after close, reused
+commitments, and the bonded settlement path including a dispute where the liar pays.
+One test pins the JavaScript Poseidon implementation to the Cairo one, because a
+commitment computed two ways has to match or a position becomes unclaimable.
+
+The TypeScript suite exists because the client grew a **second copy of the contract's
+arithmetic**. `quoteLocal` reimplements the market maker's curve so the size ladder
+can be drawn without an RPC call per rung; `positionValue` reimplements payout;
+`parseQuestion` decides what the oracle panel asserts next to a button that settles a
+market. Each was checked once by hand against mainnet — nothing stopped them drifting
+afterwards.
+
+| file | what it defends |
+|---|---|
+| `tests/curve.test.ts` | Six vectors captured from `quote()` on the live BTC market, both sides, three sizes. A JS/Cairo divergence fails here instead of in a quote. |
+| `tests/positions.test.ts` | Valuation, including the real settled parimutuel numbers, void refunds, losers, and an empty winning pot that must not divide by zero. |
+| `tests/oracle.test.ts` | The question parser, pushed hardest on false positives — inventing an answer is worse than declining one when the answer sits beside a settle button. |
+| `tests/backup.test.ts` | Restore is idempotent and a malformed file cannot half-apply. That vault is all that stands between a cleared browser and lost funds. |
+
+Both bugs that reached production are regression tests now: `fmtStrk` truncating so a
+summary visibly failed to add up, and unnormalised addresses opening the wrong market
+from a shared link.
+
+**The suite was checked against deliberate breakage.** A passing test proves nothing
+on its own, so the code was mutated three ways and the results recorded: reverting
+`fmtStrk` to truncation failed 2 tests, swapping the curve's YES/NO sides failed 1,
+and exporting secrets instead of commitments in the CSV failed 1. Each failed the
+right tests and only those, and reverting returned all 31 to green.
+
+## What could go wrong
+
+A privacy claim is only worth what its worst case is worth, so here is the worst case.
+
+**Timing correlation.** Shielding and betting are separate transactions. An observer
+watching the pool can see a deposit of size X and, shortly after, a market receiving
+X. Doom does nothing to break that link. The mitigation is the pool's, not Doom's:
+deposit early, bet later, and rely on other depositors' traffic.
+
+**Claiming reveals the secret.** A payout is a public call carrying the secret in
+calldata, so a claim links back to the bet that earned it. It does not link to a
+person — but a bet and its payout are provably the same position. If you never claim,
+nothing links; if you claim, that one pair is joined.
+
+**The anonymity set is the pool's, not Doom's.** Doom contributes no anonymity of its
+own. If the STRK20 pool has few depositors in a token, the set is small regardless of
+what Doom does.
+
+**Thin books are manipulable.** With 3 STRK a side, 2 STRK moves the price 23 points.
+Any reading of Doom's current odds as a serious forecast is a mistake, and any future
+feature that prices off spot — leverage especially — needs a time-weighted mark
+before it is safe.
+
+**A dispute concentrates power in the arbiter.** Settlement is permissionless until
+someone disputes; then a single address rules and the losing bond is forfeit. The
+arbiter cannot steal the pot, but it can decide a contested outcome. That is the
+weakest link in the settlement design and it is deliberate — the alternative in
+eighteen days was a single trusted resolver for *every* market, not just contested
+ones.
+
+**The oracle is informational.** The panel reads Pragma and pre-fills a proposal. The
+contract does not verify a feed and cannot: the binding would have to live in the
+class, and these classes are deployed. Oracle-enforced settlement is a new contract,
+not a setting.
+
+**Unaudited.** These are draft contracts written in an eighteen-day sprint. They have
+tests, an invariant, and no audit. Bet small.
+
+## Roadmap
+
+Everything below needs new contract classes, which is why none of it shipped inside
+the sprint. They are listed with what makes each hard, because a roadmap that hides
+its own blockers is a wish list.
+
+### Leveraged positions
+
+The interesting part is that leverage is *compatible* with the privacy model, which
+is not obvious and is not true of most margin systems.
+
+Margin health is a function of public data. A position's size, entry and mark price
+are already on chain — that is the whole thesis. Liquidation therefore needs to know
+**which position** is underwater, never **who owns it**. A keeper liquidates a
+commitment. Almost every margin system assumes an account; this one does not need to.
+
+```
+position   S shares, entry p0, margin M, borrowed B = S·p0 − M
+equity     E = S·p − B
+liquidate  when  p ≤ B / (S(1 − m))        m = maintenance ratio
+```
+
+100 YES at 50¢ is 50 STRK notional. Post 10, borrow 40, and that is 5×; at a 10%
+maintenance ratio it liquidates at **44.4¢** — an 11% adverse move.
+
+Three problems, hardest first:
+
+1. **Resolution is a gap, not a slide.** At settlement a share jumps to 0 or 1 with
+   nothing in between. No keeper can get in front of that, so the lender eats the bad
+   debt. The only real answer is a mandatory de-leverage window: leverage disabled
+   near close, open positions force-closed at market.
+2. **The mark price is a thin AMM.** Liquidating off spot on a 3/3 book invites
+   someone to push the curve, trigger liquidations and buy the wreckage. Needs a TWAP
+   mark, which is worth building on its own.
+3. **Someone has to lend.** A lending pool with real depositors, on a chain charging
+   6 STRK per private operation.
+
+### The rest
+
+| feature | why it is interesting | what it needs |
+|---|---|---|
+| **Sealed-bid opening** | The first N bets are commitments; nothing prices until a reveal window closes, then all clear at one price. Kills first-mover advantage and makes the opening a genuine aggregate rather than one person's guess. A new use of the primitive Doom already has. | contract |
+| **Batched claim** | With a flat fee per private operation, claiming three positions separately costs three fees. Batching is worth 12 STRK on three positions. The Wallet API indexes multiple open notes as `${openNoteIds[N]}`, but every documented example uses one invoke per transaction — this needs one real claim to establish whether N is allowed. | verification, then contract |
+| **Private limit orders** | Post "buy YES at ≤ 40¢" as a commitment; a keeper fills it when the curve crosses and takes a bounty. Depth without an order book, and nobody learns whose order it was. | contract + keeper |
+| **Anonymous track record** | Prove "five wins from seven resolved" without revealing which. Reputation is the thing privacy usually destroys, and commitments are exactly the material needed to rebuild it. The most valuable idea here and the hardest. | zero-knowledge proofs |
+| **Dark-pool crossing** | Match opposing bets at mid before touching the curve. Two people wanting opposite sides currently pay slippage *and* two pool fees. Worth more on Doom than on a cheap chain. | contract |
+| **Private liquidity** | Seeding a market is a public transaction today, so the market maker is identifiable even though the bettors are not. Routing it through the pool closes the last hole in the story. | contract |
+| **TWAP settlement** | Settle against an average over the closing window rather than a point, so nobody can spike a feed at the bell. Also the prerequisite for leverage. | contract |
+| **Oracle-enforced settlement** | The panel reads Pragma; the contract does not. Binding a market to a pair and threshold at construction would make settlement automatic rather than merely well-informed. | new class + declare |
 
 ## AI tools
 
