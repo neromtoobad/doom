@@ -16,3 +16,12 @@
 .empty { color: var(--muted); font-size: 14.5px; margin-top: 22px; }
 .link { color: var(--accent); text-decoration: none; }
 .link:hover { text-decoration: underline; }
+.gate {
+  border: 1px solid var(--line); border-radius: 14px;
+  background: rgba(18,18,21,0.55); padding: 26px; text-align: center;
+}
+.gateTitle { font-weight: 700; font-size: 16px; margin-bottom: 8px; }
+.gateBody {
+  font-size: 13.5px; color: var(--muted); line-height: 1.6;
+  margin: 0 auto 18px; max-width: 46ch;
+}

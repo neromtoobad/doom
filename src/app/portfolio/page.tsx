@@ -22,6 +22,7 @@ import {
 } from "@/lib/doom";
 import { loadUserMarkets, normalizeAddress } from "@/lib/create";
 import Portfolio from "../components/Portfolio";
+import SelectWallet from "../components/client/WalletHandle/SelectWallet";
 import WalletVault from "../components/WalletVault";
 import { useStoreWallet } from "../components/Wallet/walletContext";
 
@@ -31,6 +32,12 @@ export default function PortfolioPage() {
   const [markets, setMarkets] = useState<Record<string, MarketState>>({});
   const account = useStoreWallet((st) => st.myWalletAccount);
   const address = useStoreWallet((st) => st.address);
+  // Positions are only shown once the wallet that owns them has proved it is here.
+  // Reading them out of localStorage regardless meant a stranger opening this browser
+  // saw someone's book, and it made the page a liar: it claimed these were "your"
+  // positions without ever asking who "you" were.
+  const [unlocked, setUnlocked] = useState(false);
+  const connected = !!account && !!address;
 
   const refresh = useCallback(async () => {
     const positions = loadPositions();
@@ -75,38 +82,50 @@ export default function PortfolioPage() {
         <h1 className={p.title}>Portfolio</h1>
         <p className={p.lede}>
           A position keys off a secret, not an account, so nothing on chain says it is
-          yours. Sign once and Doom rebuilds those secrets from your wallet, on any
-          device. Bets made before this existed live only in the browser that made
-          them — export those.
+          yours. Sign once and Doom rebuilds those secrets from your wallet — the same
+          bets on any device, and nothing shown to anyone who cannot sign.
         </p>
 
-        <WalletVault
-          account={account as never}
-          address={address}
-          onMaster={() => {}}
-          onRecovered={refresh}
-        />
+        {!connected ? (
+          <div className={p.gate}>
+            <div className={p.gateTitle}>Connect your wallet</div>
+            <p className={p.gateBody}>
+              Doom holds no account and no server-side record, so there is nothing to
+              show until a wallet is here to derive its own position keys.
+            </p>
+            <SelectWallet />
+          </div>
+        ) : !unlocked ? (
+          <WalletVault
+            account={account as never}
+            address={address}
+            onMaster={() => setUnlocked(true)}
+            onRecovered={refresh}
+          />
+        ) : null}
 
-        {claimable > 0n && (
+        {unlocked && claimable > 0n && (
           <div className={p.claim}>
             <b>{fmtStrk(claimable)} STRK claimable.</b> Open the market and claim with the
             secret from the position.
           </div>
         )}
 
-        <Portfolio
-          saved={saved}
-          markets={markets}
-          onOpen={(a) => {
-            window.location.href = `../#${a}`;
-          }}
-          onRestored={refresh}
-        />
-
-        {saved.length === 0 && (
-          <p className={p.empty}>
-            Nothing here yet. <Link href="/" className={p.link}>Find a market →</Link>
-          </p>
+        {unlocked && (
+          <>
+            <Portfolio
+              saved={saved}
+              markets={markets}
+              onOpen={(a) => {
+                window.location.href = `../#${a}`;
+              }}
+            />
+            {saved.length === 0 && (
+              <p className={p.empty}>
+                Nothing here yet. <Link href="/" className={p.link}>Find a market →</Link>
+              </p>
+            )}
+          </>
         )}
       </div>
     </main>

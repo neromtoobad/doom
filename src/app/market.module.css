@@ -648,18 +648,26 @@
 @media (max-width: 760px) { .heroRow { white-space: normal; } }
 
 /* ── portfolio: what a position is worth now ─────────────────────────────── */
-.bookRow {
-  display: flex; flex-wrap: wrap; gap: 26px;
+/* The portfolio summary. Named apart from the market book below, which also has a
+   row and a cell and which silently won this selector when both were called .bookRow
+   — the summary was being laid out as a five-column grid meant for something else. */
+.summaryRow {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px 26px;
   padding: 15px 18px; margin-bottom: 12px;
   border: 1px solid var(--line); border-radius: 12px;
   background: rgba(255,255,255,0.02);
 }
-.bookCell { display: flex; flex-direction: column; gap: 4px; }
-.bookLabel {
+.summaryCell { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.summaryLabel {
   font-family: var(--font-mono-ui), monospace; font-size: 10.5px;
   letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted);
+  white-space: nowrap;
 }
-.bookValue { font-size: 17px; font-weight: 700; color: var(--text); }
+.summaryValue {
+  font-size: 17px; font-weight: 700; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 
 /* Sits under the stake size in a position row. */
 .posMark {

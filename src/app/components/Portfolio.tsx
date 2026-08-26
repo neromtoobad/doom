@@ -1,131 +1,30 @@
 "use client";
 
-// Positions and the secret vault. Extracted from the board when the portfolio got
-// its own route: the same component now backs /portfolio, and nothing renders it
-// inline on the market list any more.
+// The position list.
+//
+// Export and restore used to live here. They existed because a position was a secret
+// in this browser and nothing else could rebuild it; keys are derived from the wallet
+// now, so a file to carry between machines is a worse answer to a solved problem.
 
-import { useRef, useState } from "react";
 import s from "../market.module.css";
 import {
   OUTCOME_YES,
-  exportPositions,
   fmtStrk,
-  importPositions,
   pnlPct,
   positionValue,
-  positionsCsv,
   type MarketState,
   type SavedPosition,
 } from "@/lib/doom";
-
-/**
- * Export and restore the secret vault.
- *
- * The privacy design has one hard edge: a position is a secret in localStorage, so
- * clearing site data burns the money and nobody — us included — can undo it. This
- * is the cheapest possible insurance, and it stays offline: the file never leaves
- * the browser.
- */
-function Backup({
-  saved,
-  markets,
-  onRestored,
-}: {
-  saved: SavedPosition[];
-  markets: Record<string, MarketState>;
-  onRestored: () => void;
-}) {
-  const file = useRef<HTMLInputElement>(null);
-  const [msg, setMsg] = useState<string>("");
-
-  function save(text: string, name: string, type: string) {
-    const blob = new Blob([text], { type });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = name;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-
-  function download() {
-    const blob = new Blob([exportPositions()], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    const stamp = new Date().toISOString().slice(0, 10);
-    a.download = `doom-positions-${stamp}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    setMsg(`Saved ${saved.length} position${saved.length === 1 ? "" : "s"}.`);
-  }
-
-  async function restore(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0];
-    if (!f) return;
-    try {
-      const { added, skipped } = importPositions(await f.text());
-      setMsg(
-        added === 0
-          ? `Already had all ${skipped} of those.`
-          : `Restored ${added}${skipped ? `, skipped ${skipped} already here` : ""}.`,
-      );
-      onRestored();
-    } catch (err: unknown) {
-      setMsg((err as { message?: string })?.message ?? "Could not read that file.");
-    } finally {
-      e.target.value = "";
-    }
-  }
-
-  return (
-    <div className={s.backup}>
-      <button className={s.backupBtn} onClick={download} disabled={saved.length === 0}>
-        Back up
-      </button>
-      <button className={s.backupBtn} onClick={() => file.current?.click()}>
-        Restore
-      </button>
-      <button
-        className={s.backupBtn}
-        disabled={saved.length === 0}
-        onClick={() => {
-          const stamp = new Date().toISOString().slice(0, 10);
-          save(
-            positionsCsv(saved.map((p) => ({ p, m: markets[p.market] }))),
-            `doom-positions-${stamp}.csv`,
-            "text/csv",
-          );
-          setMsg("CSV saved — it carries commitments, not secrets.");
-        }}
-      >
-        CSV
-      </button>
-      <input
-        ref={file}
-        type="file"
-        accept="application/json,.json"
-        onChange={restore}
-        style={{ display: "none" }}
-      />
-      {msg ? <span className={s.backupMsg}>{msg}</span> : null}
-    </div>
-  );
-}
 
 export default function Portfolio({
   saved,
   markets,
   onOpen,
-  onRestored,
 }: {
   saved: SavedPosition[];
   markets: Record<string, MarketState>;
   onOpen: (a: string) => void;
-  onRestored: () => void;
 }) {
-  const backup = <Backup saved={saved} markets={markets} onRestored={onRestored} />;
-
   if (saved.length === 0) {
     return (
       <div className={s.portfolio}>
@@ -135,7 +34,6 @@ export default function Portfolio({
           nothing on chain lists them — unlock with your wallet above and Doom rebuilds
           the keys, or restore a backup.
         </p>
-        {backup}
       </div>
     );
   }
@@ -158,22 +56,22 @@ export default function Portfolio({
       </div>
 
       {(bookBasis > 0n || claimable > 0n) && (
-        <div className={s.bookRow}>
+        <div className={s.summaryRow}>
           {bookBasis > 0n && (
             <>
-              <span className={s.bookCell}>
-                <span className={s.bookLabel}>Open value</span>
-                <span className={s.bookValue}>{fmtStrk(bookValue)} STRK</span>
+              <span className={s.summaryCell}>
+                <span className={s.summaryLabel}>Open value</span>
+                <span className={s.summaryValue}>{fmtStrk(bookValue)} STRK</span>
               </span>
-              <span className={s.bookCell}>
-                <span className={s.bookLabel}>Cost</span>
-                <span className={s.bookValue}>{fmtStrk(bookBasis)} STRK</span>
+              <span className={s.summaryCell}>
+                <span className={s.summaryLabel}>Cost</span>
+                <span className={s.summaryValue}>{fmtStrk(bookBasis)} STRK</span>
               </span>
-              <span className={s.bookCell}>
-                <span className={s.bookLabel}>Unrealised</span>
+              <span className={s.summaryCell}>
+                <span className={s.summaryLabel}>Unrealised</span>
                 <span
                   className={
-                    bookValue >= bookBasis ? `${s.bookValue} ${s.yes}` : `${s.bookValue} ${s.no}`
+                    bookValue >= bookBasis ? `${s.summaryValue} ${s.yes}` : `${s.summaryValue} ${s.no}`
                   }
                 >
                   {bookValue >= bookBasis ? "+" : "−"}
@@ -183,9 +81,9 @@ export default function Portfolio({
             </>
           )}
           {claimable > 0n && (
-            <span className={s.bookCell}>
-              <span className={s.bookLabel}>Claimable</span>
-              <span className={`${s.bookValue} ${s.yes}`}>{fmtStrk(claimable)} STRK</span>
+            <span className={s.summaryCell}>
+              <span className={s.summaryLabel}>Claimable</span>
+              <span className={`${s.summaryValue} ${s.yes}`}>{fmtStrk(claimable)} STRK</span>
             </span>
           )}
         </div>
@@ -246,7 +144,6 @@ export default function Portfolio({
         device. Older ones exist only in this browser — clear your site data and those
         become unreachable by anyone, including us, so export them.
       </p>
-      {backup}
     </div>
   );
 }
