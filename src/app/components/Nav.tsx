@@ -13,11 +13,15 @@ import s from "../market.module.css";
 import markImg from "../../../public/brand/mark-96.png";
 import SelectWallet from "./client/WalletHandle/SelectWallet";
 
+// "Open a market" is a link rather than a floating pill on the right. As a pill it
+// sat in its own flex child, which on a narrow screen was drawn straight over the
+// wordmark; as the last link it wraps with the rest of the row.
 const LINKS = [
-  { href: "/", label: "Markets" },
-  { href: "/portfolio/", label: "Portfolio" },
-  { href: "/wallet/", label: "Wallet" },
-  { href: "/how-it-works/", label: "How it works" },
+  { href: "/", label: "Markets", cta: false },
+  { href: "/portfolio/", label: "Portfolio", cta: false },
+  { href: "/wallet/", label: "Wallet", cta: false },
+  { href: "/how-it-works/", label: "How it works", cta: false },
+  { href: "/create/", label: "Open a market", cta: true },
 ] as const;
 
 export default function Nav({ tag = "visible odds, invisible bettors" }: { tag?: string }) {
@@ -41,7 +45,9 @@ export default function Nav({ tag = "visible odds, invisible bettors" }: { tag?:
           <Link
             key={l.href}
             href={l.href}
-            className={active(l.href) ? `${s.navLink} ${s.navLinkOn}` : s.navLink}
+            className={[s.navLink, l.cta ? s.navLinkCta : "", active(l.href) ? s.navLinkOn : ""]
+              .filter(Boolean)
+              .join(" ")}
           >
             {l.label}
           </Link>
@@ -49,9 +55,6 @@ export default function Nav({ tag = "visible odds, invisible bettors" }: { tag?:
       </div>
 
       <div className={s.navRight}>
-        <Link href="/create/" className={`${s.pill} ${s.pillCta}`}>
-          + Open a market
-        </Link>
         <SelectWallet variant="nav" />
       </div>
     </nav>

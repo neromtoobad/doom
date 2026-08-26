@@ -968,12 +968,17 @@ export default function Home() {
       <Ticker items={all} onPick={selectMarket} />
 
       <div className={s.shell}>
-        <Hero
-          markets={all}
-          totalVolume={totalStaked}
-          openCount={open}
-          onOpen={selectMarket}
-        />
+        {/* The hero states what Doom is, which is the right thing to lead with on the
+            board and pure noise once a market is open — on a phone it pushed the
+            market the user had just tapped a full screen below the fold. */}
+        {!market && (
+          <Hero
+            markets={all}
+            totalVolume={totalStaked}
+            openCount={open}
+            onOpen={selectMarket}
+          />
+        )}
 
         {!market ? (
           <>
