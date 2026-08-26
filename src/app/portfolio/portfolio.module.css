@@ -1,0 +1,18 @@
+.wrap {
+  max-width: 1000px; margin: 0 auto; padding: 30px 24px 90px;
+  position: relative; z-index: 1;
+  font-family: var(--font-body), system-ui, sans-serif; color: var(--text);
+}
+.title {
+  font-family: var(--font-display), sans-serif; font-weight: 900;
+  font-size: clamp(1.9rem, 4.6vw, 2.8rem); letter-spacing: -0.035em; margin: 0 0 14px;
+}
+.lede { color: var(--muted); font-size: 16px; line-height: 1.6; margin: 0 0 26px; max-width: 62ch; }
+.claim {
+  border: 1px solid rgba(34,197,94,0.3); background: rgba(34,197,94,0.08);
+  color: #96e8b6; border-radius: 12px; padding: 14px 17px; margin-bottom: 22px;
+  font-size: 14px; line-height: 1.55;
+}
+.empty { color: var(--muted); font-size: 14.5px; margin-top: 22px; }
+.link { color: var(--accent); text-decoration: none; }
+.link:hover { text-decoration: underline; }

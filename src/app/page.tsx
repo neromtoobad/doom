@@ -1,10 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import Image from "next/image";
+import Link from "next/link";
 import { num, type ProviderInterface, type WalletAccountV6 } from "starknet";
 import s from "./market.module.css";
-import markImg from "../../public/brand/mark-96.png";
+import Nav from "./components/Nav";
+import { TOKEN_ART } from "./components/TokenIcons";
 import DecisionPanel from "./DecisionPanel";
 import SelectWallet from "./components/client/WalletHandle/SelectWallet";
 import { useStoreWallet } from "./components/Wallet/walletContext";
@@ -219,236 +220,7 @@ function Depth({ market, outcome }: { market: MarketState; outcome: number }) {
   );
 }
 
-/**
- * Export and restore the secret vault.
- *
- * The privacy design has one hard edge: a position is a secret in localStorage, so
- * clearing site data burns the money and nobody — us included — can undo it. This
- * is the cheapest possible insurance, and it stays offline: the file never leaves
- * the browser.
- */
-function Backup({
-  saved,
-  markets,
-  onRestored,
-}: {
-  saved: SavedPosition[];
-  markets: Record<string, MarketState>;
-  onRestored: () => void;
-}) {
-  const file = useRef<HTMLInputElement>(null);
-  const [msg, setMsg] = useState<string>("");
 
-  function save(text: string, name: string, type: string) {
-    const blob = new Blob([text], { type });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = name;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-
-  function download() {
-    const blob = new Blob([exportPositions()], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    const stamp = new Date().toISOString().slice(0, 10);
-    a.download = `doom-positions-${stamp}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    setMsg(`Saved ${saved.length} position${saved.length === 1 ? "" : "s"}.`);
-  }
-
-  async function restore(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0];
-    if (!f) return;
-    try {
-      const { added, skipped } = importPositions(await f.text());
-      setMsg(
-        added === 0
-          ? `Already had all ${skipped} of those.`
-          : `Restored ${added}${skipped ? `, skipped ${skipped} already here` : ""}.`,
-      );
-      onRestored();
-    } catch (err: unknown) {
-      setMsg((err as { message?: string })?.message ?? "Could not read that file.");
-    } finally {
-      e.target.value = "";
-    }
-  }
-
-  return (
-    <div className={s.backup}>
-      <button className={s.backupBtn} onClick={download} disabled={saved.length === 0}>
-        Back up
-      </button>
-      <button className={s.backupBtn} onClick={() => file.current?.click()}>
-        Restore
-      </button>
-      <button
-        className={s.backupBtn}
-        disabled={saved.length === 0}
-        onClick={() => {
-          const stamp = new Date().toISOString().slice(0, 10);
-          save(
-            positionsCsv(saved.map((p) => ({ p, m: markets[p.market] }))),
-            `doom-positions-${stamp}.csv`,
-            "text/csv",
-          );
-          setMsg("CSV saved — it carries commitments, not secrets.");
-        }}
-      >
-        CSV
-      </button>
-      <input
-        ref={file}
-        type="file"
-        accept="application/json,.json"
-        onChange={restore}
-        style={{ display: "none" }}
-      />
-      {msg ? <span className={s.backupMsg}>{msg}</span> : null}
-    </div>
-  );
-}
-
-function Portfolio({
-  saved,
-  markets,
-  onOpen,
-  onRestored,
-}: {
-  saved: SavedPosition[];
-  markets: Record<string, MarketState>;
-  onOpen: (a: string) => void;
-  onRestored: () => void;
-}) {
-  const backup = <Backup saved={saved} markets={markets} onRestored={onRestored} />;
-
-  if (saved.length === 0) {
-    return (
-      <div className={s.portfolio}>
-        <div className={s.portfolioHead}>My bets</div>
-        <p className={s.portfolioEmpty}>
-          No bets from this browser yet. Positions are keyed by a secret, so they live
-          here and nowhere else — not even the contract can list them for you.
-        </p>
-        {backup}
-      </div>
-    );
-  }
-
-  // Marked against the live price, so the panel answers "what is this worth now"
-  // rather than only "what did I pay".
-  const marks = saved.map((p) => positionValue(p, markets[p.market]));
-  const open = marks.filter((v) => v && v.status === "open");
-  const bookBasis = open.reduce((a, v) => a + v!.basis, 0n);
-  const bookValue = open.reduce((a, v) => a + v!.value, 0n);
-  const claimable = saved.reduce(
-    (a, p, i) => (marks[i]?.status === "won" ? a + marks[i]!.value : a),
-    0n,
-  );
-  const order = saved.map((p, i) => ({ p, v: marks[i] })).reverse();
-  return (
-    <div className={s.portfolio}>
-      <div className={s.portfolioHead}>
-        My bets<span className={s.portfolioCount}>{saved.length}</span>
-      </div>
-
-      {(bookBasis > 0n || claimable > 0n) && (
-        <div className={s.bookRow}>
-          {bookBasis > 0n && (
-            <>
-              <span className={s.bookCell}>
-                <span className={s.bookLabel}>Open value</span>
-                <span className={s.bookValue}>{fmtStrk(bookValue)} STRK</span>
-              </span>
-              <span className={s.bookCell}>
-                <span className={s.bookLabel}>Cost</span>
-                <span className={s.bookValue}>{fmtStrk(bookBasis)} STRK</span>
-              </span>
-              <span className={s.bookCell}>
-                <span className={s.bookLabel}>Unrealised</span>
-                <span
-                  className={
-                    bookValue >= bookBasis ? `${s.bookValue} ${s.yes}` : `${s.bookValue} ${s.no}`
-                  }
-                >
-                  {bookValue >= bookBasis ? "+" : "−"}
-                  {fmtStrk(bookValue >= bookBasis ? bookValue - bookBasis : bookBasis - bookValue)}
-                </span>
-              </span>
-            </>
-          )}
-          {claimable > 0n && (
-            <span className={s.bookCell}>
-              <span className={s.bookLabel}>Claimable</span>
-              <span className={`${s.bookValue} ${s.yes}`}>{fmtStrk(claimable)} STRK</span>
-            </span>
-          )}
-        </div>
-      )}
-
-      <div className={s.posList}>
-        {order.map(({ p, v }, i) => {
-          const m = markets[p.market];
-          const shares = p.shares ? BigInt(p.shares) : null;
-          const pct = v ? pnlPct(v) : null;
-          const up = v ? v.value >= v.basis : true;
-          return (
-            <button key={i} className={s.posRow} onClick={() => onOpen(p.market)}>
-              <span className={s.posSide}>
-                <span className={p.outcome === OUTCOME_YES ? s.yes : s.no}>
-                  {p.outcome === OUTCOME_YES ? "YES" : "NO"}
-                </span>
-              </span>
-              <span className={s.posQ}>{m?.question ?? p.market.slice(0, 18) + "…"}</span>
-              <span className={s.posAmt}>
-                {shares ? `${fmtStrk(shares)} shares` : `${fmtStrk(BigInt(p.amount))} STRK`}
-                {v && (
-                  <span className={s.posMark}>
-                    {fmtStrk(v.value)} STRK
-                    {pct !== null && v.status === "open" && (
-                      <span className={up ? s.yes : s.no}>
-                        {" "}
-                        {up ? "+" : ""}
-                        {pct.toFixed(1)}%
-                      </span>
-                    )}
-                  </span>
-                )}
-              </span>
-              <span
-                className={
-                  v?.status === "won"
-                    ? s.posWon
-                    : v?.status === "lost"
-                      ? s.posLost
-                      : s.posOpen
-                }
-              >
-                {v?.status === "won"
-                  ? "claimable"
-                  : v?.status === "lost"
-                    ? "lost"
-                    : v?.status === "void"
-                      ? "void"
-                      : "open"}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-      <p className={s.portfolioNote}>
-        These secrets exist only in this browser. Clear your site data and the bets
-        become unreachable by anyone, including us.
-      </p>
-      {backup}
-    </div>
-  );
-}
 
 
 /**
@@ -513,12 +285,8 @@ function marketIcon(q: string): string | null {
   // on "strk20-hackathon PR #100", which is a governance question, not a price.
   const m = /^Will (BTC|ETH|STRK|SOL) close above/i.exec(q.trim());
   if (!m) return null;
-  const icons: Record<string, string> = {
-    BTC: "btc.webp",
-    ETH: "eth.png",
-    STRK: "strk.png",
-  };
-  return icons[m[1].toUpperCase()] ?? null;
+  // Resolved through the imported art so the URL carries basePath at any depth.
+  return TOKEN_ART[m[1].toUpperCase()]?.src ?? null;
 }
 
 
@@ -918,7 +686,6 @@ export default function Home() {
   const [history, setHistory] = useState<PricePoint[]>([]);
   const [filter, setFilter] = useState<"all" | "crypto" | "starknet" | "closing">("all");
   const [sort, setSort] = useState<"volume" | "closing" | "new">("volume");
-  const [showPortfolio, setShowPortfolio] = useState(false);
   const [query, setQuery] = useState("");
   // Markets this browser created or pinned. There is no global index, so the board
   // is the curated list plus whatever the user chose to keep.
@@ -1196,19 +963,7 @@ export default function Home() {
   return (
     <main className={s.page}>
       <div className={s.aurora} aria-hidden />
-      <nav className={s.nav}>
-        <div className={s.navLeft}>
-          <button className={s.brandBtn} onClick={() => selectMarket(null)}>
-            <Image src={markImg} alt="Doom" width={40} height={40} className={s.markImg} priority />
-            <span className={s.wordmark}>DOOM</span>
-          </button>
-          <span className={s.navTag}>visible odds, invisible bettors</span>
-        </div>
-        <div className={s.navRight}>
-          <span className={`${s.chip} ${s.chipDim}`}>Starknet mainnet</span>
-          <SelectWallet variant="nav" />
-        </div>
-      </nav>
+      <Nav />
 
       <Ticker items={all} onPick={selectMarket} />
 
@@ -1265,15 +1020,9 @@ export default function Home() {
                 <option value="closing">Closing soonest</option>
                 <option value="new">Newest</option>
               </select>
-              <button
-                className={`${s.pill} ${showPortfolio ? s.pillOn : ""}`}
-                onClick={() => setShowPortfolio((v) => !v)}
-              >
+              <Link className={s.pill} href="/portfolio/">
                 My bets{saved.length > 0 ? ` (${saved.length})` : ""}
-              </button>
-              <a className={`${s.pill} ${s.pillCta}`} href="create/">
-                + Open a market
-              </a>
+              </Link>
             </div>
 
             <div className={s.pinRow}>
@@ -1311,15 +1060,6 @@ export default function Home() {
               {pinMsg ? <span className={s.pinMsg}>{pinMsg}</span> : null}
             </div>
 
-            {showPortfolio && (
-              <Portfolio
-                saved={saved}
-                markets={markets}
-                onOpen={selectMarket}
-                onRestored={() => setSaved(loadPositions())}
-              />
-            )}
-
             <div className={s.board}>
               {list.length === 0 && <div className={s.empty}>Reading markets from mainnet…</div>}
               {list.map((m) => {
@@ -1333,7 +1073,7 @@ export default function Home() {
                     <div className={s.tileTop}>
                       {marketIcon(m.question) && (
                         /* eslint-disable-next-line @next/next/no-img-element */
-                        <img className={s.tileIcon} src={`tokens/${marketIcon(m.question)}`} alt="" />
+                        <img className={s.tileIcon} src={marketIcon(m.question)!} alt="" />
                       )}
                       <span className={m.resolved ? `${s.status} ${s.statusClosed}` : s.status}>
                         <span className={s.statusDot} />

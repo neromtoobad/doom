@@ -564,7 +564,7 @@
 .hero::before {
   content: ""; position: absolute; z-index: -1; pointer-events: none;
   top: -80px; right: -14%; width: 82%; height: 130%;
-  background: url("/brand/hero.png") no-repeat right center / cover;
+  background: url("../../public/brand/hero.png") no-repeat right center / cover;
   opacity: .5;
   -webkit-mask-image: linear-gradient(100deg, transparent 6%, #000 46%, #000 82%, transparent 100%);
   mask-image: linear-gradient(100deg, transparent 6%, #000 46%, #000 82%, transparent 100%);
@@ -870,3 +870,18 @@
 .ledgerLabelHot { color: var(--accent); }
 .ledgerItems { font-size: 15px; color: var(--text); line-height: 1.5; }
 .ledgerWhy { font-size: 12.5px; color: var(--muted); }
+
+/* ── site navigation ─────────────────────────────────────────────────────── */
+.navLinks { display: flex; align-items: center; gap: 4px; }
+.navLink {
+  color: var(--muted); text-decoration: none; font-size: 13.5px;
+  padding: 8px 14px; border-radius: 9px; white-space: nowrap;
+  transition: color .15s, background .15s;
+}
+.navLink:hover { color: var(--text); background: rgba(255,255,255,0.04); }
+.navLinkOn { color: var(--text); background: rgba(255,255,255,0.06); }
+/* The links wrap under the brand before they collide with the wallet button. */
+@media (max-width: 900px) {
+  .navLinks { order: 3; width: 100%; overflow-x: auto; padding-top: 4px; }
+  .navLink { padding: 7px 11px; font-size: 13px; }
+}

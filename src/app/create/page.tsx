@@ -11,6 +11,7 @@ import Link from "next/link";
 import { constants as SNconstants, num } from "starknet";
 import s from "../market.module.css";
 import c from "./create.module.css";
+import Nav from "../components/Nav";
 import SelectWallet from "../components/client/WalletHandle/SelectWallet";
 import { useStoreWallet } from "../components/Wallet/walletContext";
 import {
@@ -160,11 +161,8 @@ export default function CreatePage() {
 
   return (
     <main className={s.page}>
+      <Nav tag="open a market" />
       <div className={c.wrap}>
-      <div className={c.head}>
-        <Link href="/" className={c.back}>← All markets</Link>
-        <SelectWallet variant="nav" />
-      </div>
 
       <h1 className={c.title}>Open a market</h1>
       <p className={c.lede}>
