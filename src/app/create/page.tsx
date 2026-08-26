@@ -6,7 +6,7 @@
 // seed: two signatures, no terminal, no declare fee. Anyone with a wallet can put a
 // question on chain and let strangers price it.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { constants as SNconstants, num } from "starknet";
 import s from "../market.module.css";
@@ -20,6 +20,14 @@ import {
   seedLiquidityCalls,
 } from "@/lib/create";
 import { fmtStrk, parseStrk } from "@/lib/doom";
+import {
+  readMedian,
+  TEMPLATE_ASSETS,
+  templateQuestion,
+  templateRoundTrips,
+  type Median,
+  type TemplateAsset,
+} from "@/lib/pragma";
 import * as constants from "@/utils/constants";
 
 type Step = { label: string; value?: string; href?: string };
@@ -41,6 +49,12 @@ export default function CreatePage() {
   const chain = useStoreWallet((st) => st.chain);
 
   const [question, setQuestion] = useState("");
+  // Template state. A question written from a template is guaranteed to parse, so
+  // the market it creates gets a live oracle reading instead of a shrug.
+  const [asset, setAsset] = useState<TemplateAsset | null>(null);
+  const [above, setAbove] = useState(true);
+  const [strike, setStrike] = useState("");
+  const [feeds, setFeeds] = useState<Record<string, Median | null>>({});
   const [closes, setCloses] = useState(defaultClose());
   const [liquidity, setLiquidity] = useState("10");
   const [bond, setBond] = useState("1");
@@ -52,6 +66,29 @@ export default function CreatePage() {
 
   // The wallet signs; the provider is what waits for a receipt.
   const provider = constants.myFrontendProviders[0]; // mainnet
+
+  // Live prices, so a strike can be chosen against reality rather than guessed.
+  useEffect(() => {
+    let dead = false;
+    Promise.all(
+      TEMPLATE_ASSETS.map(async (a) => [a, await readMedian(provider, `${a}/USD`)] as const),
+    ).then((pairs) => {
+      if (!dead) setFeeds(Object.fromEntries(pairs));
+    });
+    return () => {
+      dead = true;
+    };
+  }, [provider]);
+
+  const isoClose = closes.slice(0, 10);
+
+  function applyTemplate(a: TemplateAsset, dir: boolean, strikeText: string) {
+    const n = Number(strikeText.replace(/,/g, ""));
+    if (!Number.isFinite(n) || n <= 0) return;
+    // Never write a question the oracle panel cannot read back.
+    if (!templateRoundTrips(a, dir, n, isoClose)) return;
+    setQuestion(templateQuestion(a, dir, n, isoClose));
+  }
 
   const push = (st: Step) => setSteps((prev) => [...prev, st]);
 
@@ -135,6 +172,91 @@ export default function CreatePage() {
         and a seed — two signatures, no terminal. Whatever you write becomes a question
         strangers can price, and you cannot edit it afterwards.
       </p>
+
+      <div className={c.templates}>
+        <div className={c.templatesHead}>
+          <span className={c.templatesTitle}>Start from a price question</span>
+          <span className={c.templatesTag}>settles from Pragma</span>
+        </div>
+        <div className={c.assetRow}>
+          {TEMPLATE_ASSETS.map((a) => {
+            const f = feeds[a];
+            return (
+              <button
+                key={a}
+                className={`${c.asset} ${asset === a ? c.assetOn : ""}`}
+                disabled={f === null}
+                onClick={() => {
+                  setAsset(a);
+                  applyTemplate(a, above, strike);
+                }}
+              >
+                <span className={c.assetName}>{a}</span>
+                <span className={c.assetPrice}>
+                  {f
+                    ? `$${f.price.toLocaleString(undefined, { maximumFractionDigits: 4 })}`
+                    : f === null && a in feeds
+                      ? "no feed"
+                      : "…"}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {asset && (
+          <div className={c.templateRow}>
+            <div className={c.dirGroup}>
+              {[true, false].map((d) => (
+                <button
+                  key={String(d)}
+                  className={`${c.dir} ${above === d ? c.dirOn : ""}`}
+                  onClick={() => {
+                    setAbove(d);
+                    applyTemplate(asset, d, strike);
+                  }}
+                >
+                  {d ? "above" : "below"}
+                </button>
+              ))}
+            </div>
+            <span className={c.inputWrap}>
+              <input
+                className={c.input}
+                value={strike}
+                inputMode="decimal"
+                placeholder={
+                  feeds[asset]
+                    ? String(
+                        Number((feeds[asset]!.price * 1.2).toPrecision(2)),
+                      )
+                    : "strike"
+                }
+                onChange={(e) => {
+                  setStrike(e.target.value);
+                  applyTemplate(asset, above, e.target.value);
+                }}
+              />
+              <span className={c.suffix}>USD</span>
+            </span>
+          </div>
+        )}
+
+        {asset && feeds[asset] && strike && (
+          <span className={c.templateHint}>
+            {feeds[asset]!.pair} is ${feeds[asset]!.price.toLocaleString(undefined, { maximumFractionDigits: 4 })} now,
+            so this would open resolving{" "}
+            <b>
+              {(above
+                ? feeds[asset]!.price > Number(strike.replace(/,/g, ""))
+                : feeds[asset]!.price < Number(strike.replace(/,/g, "")))
+                ? "YES"
+                : "NO"}
+            </b>
+            . Betting closes {isoClose}.
+          </span>
+        )}
+      </div>
 
       <label className={c.label}>
         The question

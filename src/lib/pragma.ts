@@ -91,6 +91,45 @@ export function parseQuestion(question: string): Parsed | null {
   };
 }
 
+/**
+ * Assets Doom can offer a template for.
+ *
+ * The list is a promise: a market built from a template will parse, and its panel
+ * will read a live feed. So it holds only pairs Pragma actually publishes — SOL/USD
+ * reverts on mainnet today, which is exactly the kind of thing that would otherwise
+ * ship a template producing a market nothing can settle.
+ */
+export const TEMPLATE_ASSETS = ["BTC", "ETH", "STRK"] as const;
+export type TemplateAsset = (typeof TEMPLATE_ASSETS)[number];
+
+/**
+ * Build a question in the shape `parseQuestion` understands.
+ *
+ * Templates exist so the two halves cannot drift: whatever this writes, the oracle
+ * panel can read back. `templateRoundTrips` is the assertion of that, and the create
+ * page refuses to offer a template that fails it.
+ */
+export function templateQuestion(
+  asset: TemplateAsset,
+  above: boolean,
+  strike: number,
+  isoDate: string,
+): string {
+  const pretty = strike >= 1 ? strike.toLocaleString("en-US") : String(strike);
+  return `Will ${asset} close ${above ? "above" : "below"} $${pretty} on ${isoDate}?`;
+}
+
+/** True when a generated question parses back to the inputs that made it. */
+export function templateRoundTrips(
+  asset: TemplateAsset,
+  above: boolean,
+  strike: number,
+  isoDate: string,
+): boolean {
+  const p = parseQuestion(templateQuestion(asset, above, strike, isoDate));
+  return !!p && p.ticker === asset && p.above === above && p.threshold === strike;
+}
+
 export type Verdict = Parsed & {
   median: Median;
   /** What the oracle's current reading implies, if the market closed right now. */
