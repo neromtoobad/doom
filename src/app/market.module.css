@@ -800,3 +800,9 @@
 }
 .oracleOk { border: 1px solid rgba(34,197,94,0.3); background: rgba(34,197,94,0.08); color: #96e8b6; }
 .oracleErr { border: 1px solid rgba(239,68,68,0.3); background: rgba(239,68,68,0.08); color: #ffabab; }
+.fillFee { color: var(--accent); font-weight: 650; }
+.feeWarn {
+  margin-top: 12px; padding: 12px 14px; border-radius: 10px;
+  border: 1px solid rgba(255,107,53,0.35); background: rgba(255,107,53,0.08);
+  color: #ffcbb0; font-size: 12.5px; line-height: 1.6;
+}

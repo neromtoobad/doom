@@ -203,6 +203,31 @@ export async function quoteShares(
   }
 }
 
+/**
+ * The STRK20 pool's flat fee, charged once per private operation.
+ *
+ * This dominates the economics at small sizes and the panel used to say nothing
+ * about it: a 1 STRK bet moves 1 STRK to the market and 6 STRK to the fee collector,
+ * so a "+75% return" was really a 6 STRK loss. Read from the pool rather than
+ * hardcoded, because it is governance-set and has moved before.
+ */
+/** The STRK20 privacy pool on mainnet. */
+const POOL_ADDRESS =
+  "0x040337b1af3c663e86e333bab5a4b28da8d4652a15a69beee2b677776ffe812a";
+
+export async function readPoolFee(provider: ProviderInterface): Promise<bigint | null> {
+  try {
+    const r = await provider.callContract({
+      contractAddress: POOL_ADDRESS,
+      entrypoint: "get_fee_amount",
+      calldata: [],
+    });
+    return num.toBigInt(r[0]);
+  } catch {
+    return null;
+  }
+}
+
 /** Price in cents, the way a prediction market is normally read. */
 export function priceCents(bps: number): string {
   return (bps / 100).toFixed(0);
@@ -332,6 +357,38 @@ export function importPositions(text: string): { added: number; skipped: number 
   }
   localStorage.setItem(KEY, JSON.stringify(existing));
   return { added, skipped: incoming.length - added };
+}
+
+/**
+ * Positions as CSV, for a spreadsheet or a tax return.
+ *
+ * The JSON backup is the one that can restore a position; this cannot, because it
+ * is meant to be read by a human and pasted into a tool that would mangle a secret.
+ * It carries the commitment instead, which identifies the position on chain without
+ * being able to spend it.
+ */
+export function positionsCsv(rows: { p: SavedPosition; m?: MarketState }[]): string {
+  const esc = (v: string) => `"${v.replace(/"/g, '""')}"`;
+  const out = [
+    "opened_utc,market,question,side,stake_strk,shares,value_strk,status,commitment",
+  ];
+  for (const { p, m } of rows) {
+    const v = m ? positionValue(p, m) : null;
+    out.push(
+      [
+        new Date(p.at).toISOString(),
+        p.market,
+        esc(m?.question ?? ""),
+        p.outcome === OUTCOME_YES ? "YES" : "NO",
+        fmtStrk(BigInt(p.amount)),
+        p.shares ? fmtStrk(BigInt(p.shares)) : "",
+        v ? fmtStrk(v.value) : "",
+        v?.status ?? "unknown",
+        p.commitment,
+      ].join(","),
+    );
+  }
+  return out.join("\n");
 }
 
 // ── what a position is worth ────────────────────────────────────────────────────

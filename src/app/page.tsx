@@ -43,8 +43,10 @@ import {
   loadPositions,
   pnlPct,
   positionValue,
+  positionsCsv,
   priceCents,
   quoteLocal,
+  readPoolFee,
   quoteShares,
   readPriceHistory,
   type PricePoint,
@@ -223,9 +225,27 @@ function Depth({ market, outcome }: { market: MarketState; outcome: number }) {
  * is the cheapest possible insurance, and it stays offline: the file never leaves
  * the browser.
  */
-function Backup({ saved, onRestored }: { saved: SavedPosition[]; onRestored: () => void }) {
+function Backup({
+  saved,
+  markets,
+  onRestored,
+}: {
+  saved: SavedPosition[];
+  markets: Record<string, MarketState>;
+  onRestored: () => void;
+}) {
   const file = useRef<HTMLInputElement>(null);
   const [msg, setMsg] = useState<string>("");
+
+  function save(text: string, name: string, type: string) {
+    const blob = new Blob([text], { type });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = name;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 
   function download() {
     const blob = new Blob([exportPositions()], { type: "application/json" });
@@ -265,6 +285,21 @@ function Backup({ saved, onRestored }: { saved: SavedPosition[]; onRestored: () 
       <button className={s.backupBtn} onClick={() => file.current?.click()}>
         Restore
       </button>
+      <button
+        className={s.backupBtn}
+        disabled={saved.length === 0}
+        onClick={() => {
+          const stamp = new Date().toISOString().slice(0, 10);
+          save(
+            positionsCsv(saved.map((p) => ({ p, m: markets[p.market] }))),
+            `doom-positions-${stamp}.csv`,
+            "text/csv",
+          );
+          setMsg("CSV saved — it carries commitments, not secrets.");
+        }}
+      >
+        CSV
+      </button>
       <input
         ref={file}
         type="file"
@@ -288,7 +323,7 @@ function Portfolio({
   onOpen: (a: string) => void;
   onRestored: () => void;
 }) {
-  const backup = <Backup saved={saved} onRestored={onRestored} />;
+  const backup = <Backup saved={saved} markets={markets} onRestored={onRestored} />;
 
   if (saved.length === 0) {
     return (
@@ -812,6 +847,9 @@ export default function Home() {
   const [pinAddr, setPinAddr] = useState("");
   const [pinMsg, setPinMsg] = useState("");
   const [shared, setShared] = useState(false);
+  // The pool charges a flat fee per private operation. At these stake sizes it is
+  // the dominant cost, so the panel has to say it before the user signs.
+  const [poolFee, setPoolFee] = useState<bigint | null>(null);
 
   const provider = constants.myFrontendProviders[0]; // mainnet
 
@@ -841,6 +879,10 @@ export default function Home() {
       DECISIONS.map((a) => readDecision(provider, a).catch(() => null)),
     );
     setDecisions(ds.filter(Boolean) as DecisionState[]);
+  }, [provider]);
+
+  useEffect(() => {
+    readPoolFee(provider).then(setPoolFee);
   }, [provider]);
 
   useEffect(() => {
@@ -1390,8 +1432,29 @@ export default function Home() {
                               <span>If {outcome === OUTCOME_YES ? "YES" : "NO"} wins</span>
                               <span className={s.fillWin}>{fmtStrk(quote)} STRK</span>
                             </div>
+                            {poolFee !== null && poolFee > 0n && (
+                              <>
+                                <div className={s.fillRow}>
+                                  <span>Pool fee</span>
+                                  <span className={s.fillFee}>{fmtStrk(poolFee)} STRK</span>
+                                </div>
+                                <div className={s.fillRow}>
+                                  <span>Total cost</span>
+                                  <span className={s.fillVal}>
+                                    {(() => {
+                                      let cost = 0n;
+                                      try {
+                                        cost = parseStrk(amount);
+                                      } catch {}
+                                      return fmtStrk(cost + poolFee);
+                                    })()}{" "}
+                                    STRK
+                                  </span>
+                                </div>
+                              </>
+                            )}
                             <div className={s.fillRow}>
-                              <span>Return</span>
+                              <span>Return, after fee</span>
                               <span className={s.fillVal}>
                                 {(() => {
                                   let cost = 1n;
@@ -1399,13 +1462,41 @@ export default function Home() {
                                     cost = parseStrk(amount);
                                   } catch {}
                                   if (cost <= 0n) return "—";
-                                  const pct = Number((quote * 10000n) / cost) / 100 - 100;
+                                  // Net of the pool fee: the gross number told a
+                                  // 1 STRK bettor they were up 75% while they were
+                                  // six STRK down.
+                                  const outlay = cost + (poolFee ?? 0n);
+                                  const pct = Number((quote * 10000n) / outlay) / 100 - 100;
                                   return `${pct > 0 ? "+" : ""}${pct.toFixed(1)}%`;
                                 })()}
                               </span>
                             </div>
                           </div>
                         )}
+
+                        {/* A win pays `shares`. If that cannot cover stake plus fee,
+                            the bet loses money even when it is right - which at a
+                            6 STRK fee is true of every small stake. */}
+                        {poolFee !== null &&
+                          quote != null &&
+                          quote > 0n &&
+                          (() => {
+                            let cost = 0n;
+                            try {
+                              cost = parseStrk(amount);
+                            } catch {}
+                            if (cost <= 0n) return null;
+                            const outlay = cost + poolFee;
+                            if (quote >= outlay) return null;
+                            return (
+                              <div className={s.feeWarn}>
+                                Even if this wins it pays {fmtStrk(quote)} STRK against{" "}
+                                {fmtStrk(outlay)} spent. The {fmtStrk(poolFee)} STRK pool fee is
+                                charged per private operation regardless of size, so small stakes
+                                cannot cover it — stake more, or don&apos;t take this one.
+                              </div>
+                            );
+                          })()}
 
                         {market.kind === "cpmm" && !settled && (
                           <Depth market={market} outcome={outcome} />
