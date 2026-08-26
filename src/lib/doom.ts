@@ -572,6 +572,71 @@ export function branchShareBps(m: MarketState): number {
 export type PricePoint = { block: number; bps: number; outcome: number; cost: bigint };
 
 /** Selector for the Bought event, used to filter the log. */
+const STAKED_KEY = hash.getSelectorFromName("Staked");
+
+export type BookEntry = {
+  /** poseidon(tag, secret). The only identifier a position has. */
+  commitment: string;
+  outcome: number;
+  /** Collateral paid. */
+  size: bigint;
+  /** Outcome shares, on share markets. */
+  shares: bigint | null;
+  block: number;
+};
+
+/**
+ * Every position in a market, largest first.
+ *
+ * This is the whole leaderboard, and the point is what it cannot contain. The sizes
+ * are real and public because that is what makes the odds mean something; the name
+ * column does not exist, because a position is keyed by a commitment and the pool
+ * was the caller. Nothing was withheld here — there is nothing to withhold.
+ */
+export async function readBook(
+  provider: ProviderInterface,
+  market: string,
+  fromBlock = 13500000,
+): Promise<BookEntry[]> {
+  const pull = async (key: string, cpmm: boolean): Promise<BookEntry[]> => {
+    try {
+      const res = await provider.getEvents({
+        address: market,
+        keys: [[key]],
+        from_block: { block_number: fromBlock },
+        to_block: "latest",
+        chunk_size: 100,
+      });
+      return (res.events ?? []).flatMap((e) => {
+        const d = e.data ?? [];
+        // commitment is #[key], so it sits in keys[1].
+        const commitment = e.keys?.[1];
+        if (!commitment || d.length < 2) return [];
+        // Bought: [outcome, cost, shares, price]. Staked: [outcome, amount, pots...].
+        return [
+          {
+            commitment,
+            outcome: Number(num.toBigInt(d[0])),
+            size: num.toBigInt(d[1]),
+            shares: cpmm && d.length > 2 ? num.toBigInt(d[2]) : null,
+            block: Number(e.block_number ?? 0),
+          },
+        ];
+      });
+    } catch {
+      return [];
+    }
+  };
+
+  const [bought, staked] = await Promise.all([
+    pull(BOUGHT_KEY, true),
+    pull(STAKED_KEY, false),
+  ]);
+  return [...bought, ...staked]
+    .filter((x) => x.size > 0n)
+    .sort((a, b) => (b.size > a.size ? 1 : b.size < a.size ? -1 : 0));
+}
+
 const BOUGHT_KEY = hash.getSelectorFromName("Bought");
 
 export async function readPriceHistory(

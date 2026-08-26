@@ -46,7 +46,9 @@ import {
   positionsCsv,
   priceCents,
   quoteLocal,
+  readBook,
   readPoolFee,
+  type BookEntry,
   quoteShares,
   readPriceHistory,
   type PricePoint,
@@ -703,6 +705,83 @@ function OracleSettle({
       )}
       {address ? null : null}
     </div>
+  );
+}
+
+/**
+ * The leaderboard, built rather than argued about.
+ *
+ * A prose panel saying "we cannot rank whales" asks to be believed. This shows the
+ * actual ranking: every position in the market, largest first, straight from the
+ * contract's own events. The sizes are all there, because public sizes are what make
+ * the odds worth reading. The identity column is drawn, and empty, because a
+ * position is keyed by a commitment and the pool was the caller — there is nothing
+ * being withheld, there is nothing to withhold.
+ */
+function Book({ market, provider }: { market: MarketState; provider: ProviderInterface }) {
+  const [rows, setRows] = useState<BookEntry[] | null>(null);
+
+  useEffect(() => {
+    let dead = false;
+    setRows(null);
+    readBook(provider, market.address).then((b) => !dead && setRows(b));
+    return () => {
+      dead = true;
+    };
+  }, [provider, market.address]);
+
+  const total = (rows ?? []).reduce((a, r) => a + r.size, 0n);
+
+  return (
+    <section className={s.book}>
+      <div className={s.bookHead}>
+        <span className={s.bookTitle}>The book</span>
+        <span className={s.bookTag}>every size · no names</span>
+      </div>
+
+      {rows === null ? (
+        <p className={s.bookEmpty}>Reading positions from chain…</p>
+      ) : rows.length === 0 ? (
+        <p className={s.bookEmpty}>
+          Nobody has taken a position yet. When they do, every size appears here and no
+          name ever will.
+        </p>
+      ) : (
+        <>
+          <div className={s.bookRows}>
+            {rows.slice(0, 8).map((r, i) => (
+              <div className={s.bookRow} key={`${r.commitment}-${i}`}>
+                <span className={s.bookRank}>{i + 1}</span>
+                <span
+                  className={s.bookRedact}
+                  title="No identity is recorded on chain"
+                  aria-label="No identity is recorded on chain"
+                />
+                <span className={s.bookCommit}>
+                  {r.commitment.slice(0, 10)}…{r.commitment.slice(-4)}
+                </span>
+                <span className={r.outcome === OUTCOME_YES ? s.yes : s.no}>
+                  {r.outcome === OUTCOME_YES ? "YES" : "NO"}
+                </span>
+                <span className={s.bookSize}>{fmtStrk(r.size)} STRK</span>
+              </div>
+            ))}
+          </div>
+          <div className={s.bookFoot}>
+            <span>
+              {rows.length} position{rows.length === 1 ? "" : "s"} · {fmtStrk(total)} STRK
+            </span>
+            <span className={s.bookFootDim}>0 identities</span>
+          </div>
+        </>
+      )}
+
+      <p className={s.bookNote}>
+        Polymarket ranks its whales in a panel like this one, and that ranking is what
+        produces herding and copy-betting. Every size is here. There is nowhere to put a
+        name.
+      </p>
+    </section>
   );
 }
 
@@ -1373,6 +1452,7 @@ export default function Home() {
                   address={address}
                   onDone={refresh}
                 />
+                <Book market={market} provider={provider} />
                 <Resolution market={market} />
               </div>
 
@@ -1652,31 +1732,27 @@ export default function Home() {
           </>
         )}
 
-        <section className={s.void}>
-          <div className={s.voidHead}>
-            <span className={s.voidTitle}>Top bettors</span>
-            <span className={s.voidTag}>unavailable by design</span>
+        <div className={s.ledger}>
+          <div className={s.ledgerCol}>
+            <span className={s.ledgerLabel}>Public</span>
+            <span className={s.ledgerItems}>
+              the question · the odds · every bet size · the resolution
+            </span>
+            <span className={s.ledgerWhy}>This is what makes the odds worth reading.</span>
           </div>
-          <p className={s.voidBody}>
-            Polymarket ranks its whales here, and that leaderboard is exactly what causes
-            herding, copy-betting and pressure on bettors. Doom cannot build one:{" "}
-            <strong>positions key off a secret, not an address</strong>, every pool transaction
-            is relayed, and no wallet-level history accumulates to profile. The odds above are
-            fully public — that is what keeps the market accurate.
-          </p>
-          <div className={s.ghostRows}>
-            <div className={s.ghostRow}>—</div>
-            <div className={s.ghostRow}>—</div>
-            <div className={s.ghostRow}>—</div>
+          <div className={s.ledgerCol}>
+            <span className={`${s.ledgerLabel} ${s.ledgerLabelHot}`}>Hidden</span>
+            <span className={s.ledgerItems}>
+              who bet · what they have bet anywhere else
+            </span>
+            <span className={s.ledgerWhy}>This is what makes them manipulable.</span>
           </div>
-        </section>
-
+        </div>
         <p className={s.footNote}>
-          Draft contract, unaudited, written during an 18-day sprint — bet small. Public by
-          design: the question, the odds, every bet size, the resolution. That visibility is what
-          makes the odds accurate. Hidden: who bet, and any cross-market profile of them. Claiming
-          does reveal the secret, so a payout links back to its bet — but never to a person. The
-          anonymity set is the STRK20 pool&apos;s, not Doom&apos;s alone.
+          <b>The limits, plainly.</b> Claiming reveals the secret, so a payout links back to
+          the bet that earned it — never to a person. The anonymity set is the STRK20
+          pool&apos;s, not Doom&apos;s alone. The contracts are a draft, unaudited, written in an
+          18-day sprint. Bet small.
         </p>
       </div>
     </main>
