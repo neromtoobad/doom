@@ -120,7 +120,13 @@
 
 /* ── layout ────────────────────────────────────────────────────────── */
 .grid { display: grid; grid-template-columns: 1fr 400px; gap: 24px; align-items: start; }
-@media (max-width: 960px) { .grid { grid-template-columns: 1fr; } }
+@media (max-width: 960px) {
+  .grid { grid-template-columns: 1fr; }
+  /* Stacked, the action panel landed two screens below the fold, behind the chart
+     and the book — on a settled market that meant the claim button was effectively
+     hidden from anyone on a phone. The thing you came to do goes first. */
+  .grid > aside { order: -1; }
+}
 
 .card {
   border-radius: 20px; border: 1px solid rgba(255,255,255,.07);
