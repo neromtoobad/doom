@@ -120,6 +120,12 @@
 
 /* ── layout ────────────────────────────────────────────────────────── */
 .grid { display: grid; grid-template-columns: 1fr 400px; gap: 24px; align-items: start; }
+/* Grid items default to min-width:auto, so any child that will not shrink — a long
+   unbroken hash, a nowrap meta row — widens its track instead of scrolling inside
+   it. That pushed the 1fr column past the shell and carried the 400px action panel
+   off the right edge, where overflow-x:hidden on the body clipped it out of reach
+   entirely. Letting the tracks shrink is what keeps the panel on screen. */
+.grid > * { min-width: 0; }
 @media (max-width: 960px) {
   .grid { grid-template-columns: 1fr; }
   /* Stacked, the action panel landed two screens below the fold, behind the chart
@@ -650,8 +656,12 @@
 @media (prefers-reduced-motion: reduce) {
   .heroLine { animation: none; }
 }
-.heroRow { display: block; white-space: nowrap; }
-@media (max-width: 760px) { .heroRow { white-space: normal; } }
+/* .heroRow is defined once, above, as a flex row. A second definition here set
+   white-space: nowrap, which made the question a single unbreakable line: its
+   min-content width then sized the 1fr grid track, pushed the column past the shell
+   and carried the action panel off the right edge, where overflow-x:hidden clipped
+   it away. The question wraps. */
+.question { overflow-wrap: anywhere; }
 
 /* ── portfolio: what a position is worth now ─────────────────────────────── */
 /* The portfolio summary. Named apart from the market book below, which also has a
@@ -858,6 +868,7 @@
 }
 .bookCommit {
   font-family: var(--font-mono-ui), monospace; font-size: 11.5px; color: var(--muted);
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .bookSize { font-weight: 700; color: var(--text); text-align: right; }
 .bookFoot {
