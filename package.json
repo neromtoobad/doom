@@ -7,8 +7,9 @@
     "build": "next build --webpack",
     "start": "next start",
     "lint": "next lint",
-    "test": "node --import tsx --test \"tests/*.test.ts\"",
-    "verify": "node scripts/verify.mjs"
+    "test": "node scripts/css-collisions.mjs && node --import tsx --test \"tests/*.test.ts\"",
+    "verify": "node scripts/verify.mjs",
+    "lint:css": "node scripts/css-collisions.mjs"
   },
   "dependencies": {
     "@starknet-io/get-starknet-discovery": "6.0.2",
