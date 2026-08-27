@@ -5,7 +5,7 @@ import Link from "next/link";
 import { num, type ProviderInterface, type WalletAccountV6 } from "starknet";
 import s from "./market.module.css";
 import Nav from "./components/Nav";
-import { derivedSecret } from "@/lib/vault";
+import { cachedMaster, derivedSecret, findPosition, unlock } from "@/lib/vault";
 import { TOKEN_ART } from "./components/TokenIcons";
 import DecisionPanel from "./DecisionPanel";
 import SelectWallet from "./components/client/WalletHandle/SelectWallet";
@@ -714,7 +714,11 @@ export default function Home() {
   // The wallet-derived master key, once the user has unlocked it this session. New
   // bets key off it so they can be recovered on any device; without it we fall back
   // to a random secret that only this browser will ever know.
-  const [master, setMaster] = useState<string | null>(null);
+  const [master, setMaster] = useState<string | null>(cachedMaster());
+  // The position this wallet holds on the open market, derived rather than typed.
+  const [mine, setMine] = useState<Awaited<ReturnType<typeof findPosition>>>(null);
+  const [unlocking, setUnlocking] = useState(false);
+  const [showManual, setShowManual] = useState(false);
 
   const provider = constants.myFrontendProviders[0]; // mainnet
 
@@ -800,6 +804,16 @@ export default function Home() {
       .map((m) => normalizeAddress(m.address))
       .filter((a) => !MARKETS.some((c) => normalizeAddress(c) === a)),
   ];
+  useEffect(() => {
+    let dead = false;
+    setMine(null);
+    if (!master || !selected) return;
+    findPosition(provider, master, selected).then((p) => !dead && setMine(p));
+    return () => {
+      dead = true;
+    };
+  }, [master, selected, provider]);
+
   const all = boardAddrs.map((a) => markets[a]).filter(Boolean) as MarketState[];
 
   const CRYPTO = /\b(BTC|ETH|SOL|XRP|DOGE)\b/;
@@ -890,6 +904,28 @@ export default function Home() {
     }
   }
 
+  /** Ask the wallet for the key once, then reuse it for the rest of the session. */
+  async function unlockWallet(): Promise<string | null> {
+    if (master) return master;
+    if (!myWalletAccount || !address) {
+      setResult({ kind: "err", msg: "Connect a wallet first." });
+      return null;
+    }
+    setUnlocking(true);
+    setResult({ kind: "pending", msg: "Approve both prompts — the second proves the key can be rebuilt." });
+    try {
+      const m = await unlock(myWalletAccount as never, address);
+      setMaster(m);
+      setResult({ kind: "idle" });
+      return m;
+    } catch (e: unknown) {
+      setResult({ kind: "err", msg: (e as { message?: string })?.message ?? String(e) });
+      return null;
+    } finally {
+      setUnlocking(false);
+    }
+  }
+
   async function stake() {
     if (!myWalletAccount || !market)
       return setResult({ kind: "err", msg: "Connect a wallet first." });
@@ -935,10 +971,10 @@ export default function Home() {
     }
   }
 
-  async function claim() {
+  async function claim(useSecret?: string) {
     if (!myWalletAccount || !market)
       return setResult({ kind: "err", msg: "Connect a wallet first." });
-    const secret = claimSecret.trim();
+    const secret = (useSecret ?? claimSecret).trim();
     if (!secret) return setResult({ kind: "err", msg: "Paste the secret from your stake." });
     setResult({ kind: "pending", msg: "Confirm in your wallet…" });
     try {
@@ -1366,25 +1402,83 @@ export default function Home() {
                       </>
                     ) : (
                       <>
-                        <label className={s.label} htmlFor="sec">
-                          Your secret
-                        </label>
-                        <div className={s.inputWrap}>
-                          <input
-                            id="sec"
-                            className={s.input}
-                            value={claimSecret}
-                            onChange={(e) => setClaimSecret(e.target.value)}
-                            placeholder="0x…"
-                          />
-                        </div>
-                        <button
-                          className={s.cta}
-                          onClick={claim}
-                          disabled={!myWalletAccount || result.kind === "pending"}
-                        >
-                          {result.kind === "pending" ? "Working…" : "Claim payout"}
+                        {/* Asking a winner to paste a private key was never a real
+                            design — the app derived that key and can derive it
+                            again. Sign, and it finds the position itself. */}
+                        {!master ? (
+                          <>
+                            <p className={s.claimLede}>
+                              Sign once and Doom rebuilds the key it bet with, then claims
+                              for you. Nothing to copy, nothing to keep.
+                            </p>
+                            <button
+                              className={s.cta}
+                              onClick={unlockWallet}
+                              disabled={!myWalletAccount || unlocking}
+                            >
+                              {unlocking ? "Check your wallet…" : "Unlock with wallet"}
+                            </button>
+                          </>
+                        ) : mine ? (
+                          <>
+                            <div className={s.claimFound}>
+                              <span className={s.claimFoundSide}>
+                                {mine.outcome === OUTCOME_YES ? "YES" : "NO"}
+                              </span>
+                              <span>
+                                {fmtStrk(mine.amount)} STRK staked
+                                {market.winningOutcome === mine.outcome ||
+                                market.winningOutcome === OUTCOME_VOID
+                                  ? " — this one wins"
+                                  : " — this one lost"}
+                              </span>
+                            </div>
+                            <button
+                              className={s.cta}
+                              onClick={() => {
+                                setClaimSecret(mine.secret);
+                                claim(mine.secret);
+                              }}
+                              disabled={
+                                result.kind === "pending" ||
+                                (market.winningOutcome !== OUTCOME_VOID &&
+                                  market.winningOutcome !== mine.outcome)
+                              }
+                            >
+                              {result.kind === "pending" ? "Working…" : "Claim payout"}
+                            </button>
+                          </>
+                        ) : (
+                          <p className={s.claimLede}>
+                            This wallet holds no position on this market.
+                          </p>
+                        )}
+
+                        {/* Positions made before keys were wallet-derived, or one
+                            someone handed you, still need a way in. */}
+                        <button className={s.claimManual} onClick={() => setShowManual((v) => !v)}>
+                          {showManual ? "Hide" : "Claim with a secret instead"}
                         </button>
+                        {showManual && (
+                          <>
+                            <div className={s.inputWrap}>
+                              <input
+                                id="sec"
+                                className={s.input}
+                                value={claimSecret}
+                                onChange={(e) => setClaimSecret(e.target.value)}
+                                placeholder="0x…"
+                              />
+                            </div>
+                            <button
+                              className={s.ghost}
+                              onClick={() => claim()}
+                              disabled={!myWalletAccount || result.kind === "pending"}
+                            >
+                              Claim with this secret
+                            </button>
+                          </>
+                        )}
                         {mySecrets.length > 0 && (
                           <div className={s.posList}>
                             <div className={s.posHead}>

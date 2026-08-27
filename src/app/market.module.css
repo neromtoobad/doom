@@ -920,3 +920,15 @@
   .navLinks::-webkit-scrollbar { display: none; }
   .navLink { padding: 7px 11px; font-size: 13px; white-space: nowrap; }
 }
+.claimLede { font-size: 13px; color: var(--muted); line-height: 1.6; margin: 0 0 14px; }
+.claimFound {
+  display: flex; align-items: center; gap: 11px; margin-bottom: 14px;
+  padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px;
+  font-size: 13.5px; color: var(--text); background: rgba(255,255,255,0.02);
+}
+.claimFoundSide { font-weight: 750; font-family: var(--font-mono-ui), monospace; font-size: 12px; }
+.claimManual {
+  margin-top: 14px; background: none; border: none; padding: 0; cursor: pointer;
+  color: var(--muted); font-family: inherit; font-size: 12.5px; text-decoration: underline;
+}
+.claimManual:hover { color: var(--text); }

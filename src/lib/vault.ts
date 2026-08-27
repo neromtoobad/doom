@@ -50,6 +50,68 @@ function masterFromSignature(sig: string[]): string {
   ]);
 }
 
+/**
+ * The master key for this session.
+ *
+ * Held in memory only. It can spend every position it derives, so it is never
+ * written to disk — a reload asks the wallet again, which is the right trade for a
+ * key of that power. Client-side navigation keeps it, so moving between the board
+ * and the portfolio does not re-prompt.
+ */
+let cached: string | null = null;
+
+export function cachedMaster(): string | null {
+  return cached;
+}
+
+export function forgetMaster(): void {
+  cached = null;
+}
+
+/** Derive once per session and remember it in memory. */
+export async function unlock(
+  signer: { signMessage: (t: TypedData, a: string) => Promise<unknown> },
+  address: string,
+): Promise<string> {
+  if (cached) return cached;
+  cached = await deriveMaster(signer, address);
+  return cached;
+}
+
+/**
+ * The position this wallet holds on one market, if any.
+ *
+ * Used by the claim panel so a winner never has to produce a key by hand: the app
+ * derives the same secret it bet with and spends it.
+ */
+export async function findPosition(
+  provider: ProviderInterface,
+  master: string,
+  market: string,
+  depth = 8,
+): Promise<{ secret: string; commitment: string; outcome: number; amount: bigint } | null> {
+  for (let i = 0; i < depth; i++) {
+    const secret = derivedSecret(master, market, i);
+    const commitment = computeCommitment(secret);
+    try {
+      const r = await provider.callContract({
+        contractAddress: market,
+        entrypoint: "get_position",
+        calldata: [commitment],
+      });
+      const shares = num.toBigInt(r[1] ?? "0x0");
+      const cost = num.toBigInt(r[2] ?? "0x0");
+      const amount = cost > 0n ? cost : shares;
+      if (amount > 0n) {
+        return { secret, commitment, outcome: Number(num.toBigInt(r[0] ?? "0x0")), amount };
+      }
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
 export class NonDeterministicWallet extends Error {
   constructor() {
     super(
