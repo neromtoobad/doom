@@ -1480,7 +1480,7 @@ export default function Home() {
                           </>
                         )}
                         {mySecrets.length > 0 && (
-                          <div className={s.posList}>
+                          <div className={s.pickList}>
                             <div className={s.posHead}>
                               Positions saved in this browser for this market
                             </div>
@@ -1501,7 +1501,7 @@ export default function Home() {
                               return (
                                 <button
                                   key={p.commitment}
-                                  className={`${s.posRow} ${won ? s.posWon : s.posLost}`}
+                                  className={`${s.pickRow} ${won ? s.pickWon : s.pickLost}`}
                                   onClick={() => setClaimSecret(p.secret)}
                                   disabled={!won || result.kind === "pending"}
                                   title={won ? "Load this secret" : "This side lost"}
@@ -1509,7 +1509,7 @@ export default function Home() {
                                   <span className={p.outcome === OUTCOME_YES ? s.yes : s.no}>
                                     {side}
                                   </span>
-                                  <span className={s.posAmt}>
+                                  <span className={s.pickAmt}>
                                     {fmtStrk(BigInt(p.amount))} STRK
                                   </span>
                                   <span className={s.posPay}>

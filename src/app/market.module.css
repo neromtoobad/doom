@@ -216,7 +216,9 @@
 }
 .metaItem { display: flex; align-items: center; gap: 7px; }
 .metaVal { color: var(--text); font-variant-numeric: tabular-nums; }
-.link { color: inherit; }
+.link { color: inherit;
+  padding: 4px 0; min-height: 24px; display: inline-flex; align-items: center;
+}
 
 /* ── the absence ───────────────────────────────────────────────────── */
 .void {
@@ -356,8 +358,9 @@
 }
 .tileFootDim { color: #55555e; }
 .back {
-  background: none; border: none; cursor: pointer; padding: 0;
-  color: var(--muted); font-size: 13.5px; margin-bottom: 18px;
+  background: none; border: none; cursor: pointer; padding: 6px 0;
+  color: var(--muted); font-size: 13.5px; margin-bottom: 12px;
+  min-height: 24px; display: inline-flex; align-items: center;
 }
 .back:hover { color: var(--text); }
 
@@ -397,21 +400,25 @@
 }
 
 /* ── saved positions picker (claim) ────────────────────────────────── */
-.posList { margin-top: 12px; display: grid; gap: 7px; }
+/* The claim picker. Named apart from the portfolio list further down, which also
+   has a row, a won and a lost — and which silently won those selectors, laying these
+   three-column rows out against a four-column track list and stripping the disabled
+   styling off a losing position. */
+.pickList { margin-top: 12px; display: grid; gap: 7px; }
 .posHead { font-size: 11.5px; color: var(--muted); margin-bottom: 3px; }
-.posRow {
+.pickRow {
   display: grid; grid-template-columns: 46px 1fr auto; align-items: center; gap: 10px;
   padding: 11px 13px; border-radius: 11px; cursor: pointer; text-align: left;
   border: 1px solid var(--line); background: var(--surface2);
   font-size: 12.5px; font-variant-numeric: tabular-nums; color: var(--text);
   font-weight: 600; transition: border-color .15s;
 }
-.posRow:hover:not(:disabled) { border-color: #45454f; }
-.posWon { border-color: rgba(34,197,94,0.4); }
-.posLost { opacity: 0.45; cursor: not-allowed; }
-.posAmt { color: var(--muted); font-weight: 500; }
+.pickRow:hover:not(:disabled) { border-color: #45454f; }
+.pickWon { border-color: rgba(34,197,94,0.4); }
+.pickLost { opacity: 0.45; cursor: not-allowed; }
+.pickAmt { color: var(--muted); font-weight: 500; }
 .posPay { color: var(--yes); font-weight: 700; }
-.posLost .posPay { color: var(--muted); font-weight: 500; }
+.pickLost .posPay { color: var(--muted); font-weight: 500; }
 
 /* ── share prices on the side buttons ──────────────────────────────── */
 .pickBtn { display: flex; flex-direction: column; align-items: center; gap: 3px; }
@@ -919,6 +926,10 @@
   }
   .navLinks::-webkit-scrollbar { display: none; }
   .navLink { padding: 7px 11px; font-size: 13px; white-space: nowrap; }
+  /* Last in source order, "Open a market" sat past the right edge of a row that
+     scrolls sideways with no affordance — the primary action was the hardest thing
+     on the page to find. It leads the row instead. */
+  .navLinkCta { order: -1; }
 }
 .claimLede { font-size: 13px; color: var(--muted); line-height: 1.6; margin: 0 0 14px; }
 .claimFound {
@@ -928,7 +939,8 @@
 }
 .claimFoundSide { font-weight: 750; font-family: var(--font-mono-ui), monospace; font-size: 12px; }
 .claimManual {
-  margin-top: 14px; background: none; border: none; padding: 0; cursor: pointer;
+  margin-top: 10px; background: none; border: none; padding: 8px 0; cursor: pointer;
   color: var(--muted); font-family: inherit; font-size: 12.5px; text-decoration: underline;
+  min-height: 24px;
 }
 .claimManual:hover { color: var(--text); }

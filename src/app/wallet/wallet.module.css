@@ -23,7 +23,12 @@
 }
 .stepTitle { font-weight: 700; font-size: 14.5px; margin-bottom: 5px; }
 .stepBody { font-size: 13px; color: var(--muted); line-height: 1.55; margin: 0; }
-.link { color: var(--accent); text-decoration: none; }
+/* Inline links sat under a comfortable tap target; the extra padding is
+   vertical only so it does not disturb the sentence they sit in. */
+.link {
+  color: var(--accent); text-decoration: none;
+  padding: 4px 0; min-height: 24px; display: inline-flex; align-items: center;
+}
 .link:hover { text-decoration: underline; }
 .costNote {
   border: 1px solid rgba(255,107,53,0.3); background: rgba(255,107,53,0.07);

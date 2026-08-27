@@ -15,7 +15,12 @@
 }
 .body { font-size: 15px; line-height: 1.65; color: var(--muted); margin: 0 0 14px; }
 .body b { color: var(--text); }
-.link { color: var(--accent); text-decoration: none; }
+/* Inline links sat under a comfortable tap target; the extra padding is
+   vertical only so it does not disturb the sentence they sit in. */
+.link {
+  color: var(--accent); text-decoration: none;
+  padding: 4px 0; min-height: 24px; display: inline-flex; align-items: center;
+}
 .link:hover { text-decoration: underline; }
 
 .ledger { display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
