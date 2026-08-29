@@ -20,6 +20,7 @@ const LINKS = [
   { href: "/", label: "Markets", cta: false },
   { href: "/portfolio/", label: "Portfolio", cta: false },
   { href: "/wallet/", label: "Wallet", cta: false },
+  { href: "/watch/", label: "Watch", cta: false },
   { href: "/how-it-works/", label: "How it works", cta: false },
   { href: "/create/", label: "Open a market", cta: true },
 ] as const;
