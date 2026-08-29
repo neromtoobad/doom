@@ -10,6 +10,7 @@ import { TOKEN_ART } from "./components/TokenIcons";
 import DecisionPanel from "./DecisionPanel";
 import SelectWallet from "./components/client/WalletHandle/SelectWallet";
 import { useStoreWallet } from "./components/Wallet/walletContext";
+import { describeBet } from "@/lib/disclosure";
 import * as constants from "@/utils/constants";
 import {
   finalizeCall,
@@ -473,6 +474,93 @@ function OracleSettle({
         <div className={msg.ok ? s.oracleOk : s.oracleErr}>{msg.text}</div>
       )}
       {address ? null : null}
+    </div>
+  );
+}
+
+/**
+ * What this bet publishes, shown before it is signed.
+ *
+ * Four other projects in this sprint build a general pre-signature privacy linter,
+ * and they are right that the moment to tell someone what leaks is before they
+ * commit rather than after. A general tool has to infer a contract's behaviour;
+ * Doom is the contract, so this states it exactly: the two legs, the fields of the
+ * `Staked` event, and an anonymity number measured from this market's own log
+ * rather than asserted.
+ *
+ * The caveats are the point. A panel that only listed what is hidden would be an
+ * advertisement.
+ */
+function BetDisclosure({
+  market,
+  provider,
+  amountWei,
+  outcome,
+  poolFee,
+}: {
+  market: MarketState;
+  provider: ProviderInterface;
+  amountWei: bigint;
+  outcome: number;
+  poolFee: bigint | null;
+}) {
+  const [rows, setRows] = useState<BookEntry[] | null>(null);
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    let dead = false;
+    readBook(provider, market.address).then((b) => !dead && setRows(b));
+    return () => {
+      dead = true;
+    };
+  }, [provider, market.address]);
+
+  if (amountWei <= 0n) return null;
+  const d = describeBet({
+    book: rows ?? [],
+    amountWei,
+    outcome,
+    market: market.address,
+    poolFeeWei: poolFee,
+  });
+
+  return (
+    <div className={s.disc}>
+      <button className={s.discHead} onClick={() => setOpen((o) => !o)} type="button">
+        <span className={s.discTitle}>What this bet publishes</span>
+        <span className={s.discToggle}>{open ? "hide" : "show"}</span>
+      </button>
+      {open && (
+        <div className={s.discBody}>
+          <div className={s.discCols}>
+            <div>
+              <div className={s.discLabel}>On chain, publicly</div>
+              {d.published.map((r) => (
+                <div key={r.label} className={s.discRow}>
+                  <span className={s.discK}>{r.label}</span>
+                  <span className={s.discV}>{r.value}</span>
+                </div>
+              ))}
+            </div>
+            <div>
+              <div className={s.discLabel}>Never written</div>
+              {d.withheld.map((r) => (
+                <div key={r.label} className={s.discRow}>
+                  <span className={s.discK}>{r.label}</span>
+                  <span className={s.discV}>{r.value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className={s.discLabel}>What this still gives away</div>
+          {d.caveats.map((c) => (
+            <p key={c} className={s.discCaveat}>
+              {c}
+            </p>
+          ))}
+          {rows === null && <p className={s.discCaveat}>Reading the book to measure the crowd…</p>}
+        </div>
+      )}
     </div>
   );
 }
@@ -1386,6 +1474,23 @@ export default function Home() {
                         {market.kind === "cpmm" && !settled && (
                           <Depth market={market} outcome={outcome} />
                         )}
+
+                        {(() => {
+                          let amt = 0n;
+                          try {
+                            amt = parseStrk(amount);
+                          } catch {}
+                          if (amt <= 0n || settled) return null;
+                          return (
+                            <BetDisclosure
+                              market={market}
+                              provider={provider}
+                              amountWei={amt}
+                              outcome={outcome}
+                              poolFee={poolFee}
+                            />
+                          );
+                        })()}
 
                         <button
                           className={s.cta}

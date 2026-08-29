@@ -49,6 +49,21 @@ can be linked back to the bet that earned it. It still links neither to a person
 Timing correlation between shielding and betting is a real side channel this does not
 solve. The anonymity set is the STRK20 pool's, not Doom's alone.
 
+That table is also in the product, per bet, before it is signed. The trade panel
+carries a **What this bet publishes** disclosure listing the fields the `Staked` event
+actually writes, the fields it cannot write, and — under *what this still gives away* —
+the caveats above, phrased for the bet in the box. Several projects in this sprint
+build a general pre-signature privacy linter, and they are right about the timing: the
+moment to tell someone what leaks is before they commit. A general tool has to infer a
+contract's behaviour. Doom is the contract, so the panel states it exactly, and the
+anonymity number is measured rather than asserted: it counts positions already standing
+in the same whole-STRK size band, read from the market's own event log. When the market
+is empty it says the bet would be identifiable by its amount alone, and when a fuller
+band exists it names it. `describeBet` cannot return an empty caveat list — the
+commitment linking a stake to its own claim is a property of the design, so it is
+disclosed on every bet. See [`src/lib/disclosure.ts`](src/lib/disclosure.ts) and its
+tests in [`tests/disclosure.test.ts`](tests/disclosure.test.ts).
+
 ## How a bet works
 
 A market is a fixed-product market maker over binary outcome shares — the Gnosis

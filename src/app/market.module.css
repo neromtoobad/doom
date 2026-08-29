@@ -943,3 +943,86 @@
   min-height: 24px;
 }
 .claimManual:hover { color: var(--text); }
+
+/* ── pre-signature disclosure ──────────────────────────────────────────────────
+   Sits between the fee warning and the bet button, because that is the last
+   moment the information can still change a decision. */
+.disc {
+  margin: 14px 0 4px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.015);
+  overflow: hidden;
+}
+.discHead {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 13px;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  color: var(--text);
+}
+.discTitle {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.discToggle {
+  font-family: var(--font-mono-ui), monospace;
+  font-size: 11px;
+  color: var(--accent);
+}
+.discBody {
+  padding: 2px 13px 13px;
+  border-top: 1px solid var(--line);
+}
+.discCols {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr));
+  gap: 4px 26px;
+  margin-bottom: 6px;
+}
+.discLabel {
+  font-family: var(--font-mono-ui), monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 12px 0 6px;
+}
+.discRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 12px;
+  min-width: 0;
+}
+.discK {
+  color: var(--muted);
+  flex: 0 1 auto;
+  min-width: 0;
+}
+.discV {
+  color: var(--text);
+  text-align: right;
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.discCaveat {
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--muted);
+  margin: 0 0 7px;
+  padding-left: 11px;
+  border-left: 2px solid var(--line);
+}
