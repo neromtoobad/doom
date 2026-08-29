@@ -61,7 +61,7 @@ export const S2Problem: React.FC = () => (
     <Bg tint={C.no} intensity={0.7} />
     <Vignette />
 
-    <Sequence durationInFrames={sec(9)}>
+    <Sequence durationInFrames={sec(8)}>
       <AbsoluteFill style={{ justifyContent: 'center', padding: '0 132px' }}>
         <Kicker delay={2} color={C.no}>The trade-off nobody fixed</Kicker>
         <Title delay={8} size={82}>
@@ -77,7 +77,7 @@ export const S2Problem: React.FC = () => (
       </AbsoluteFill>
     </Sequence>
 
-    <Sequence from={sec(9)}>
+    <Sequence from={sec(8)}>
       <AbsoluteFill style={{ justifyContent: 'center', padding: '0 110px' }}>
         <Kicker delay={0} color={C.no}>What that costs</Kicker>
         <div style={{ display: 'flex', gap: 26, marginTop: 14 }}>

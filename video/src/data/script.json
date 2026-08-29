@@ -1,102 +1,20 @@
 [
-  {
-    "id": 1,
-    "at": 1.0,
-    "text": "Doom. A prediction market where the odds are public, and the bettors are not."
-  },
-  {
-    "id": 2,
-    "at": 9.0,
-    "text": "Prediction markets work because you can see the money. That is also the problem."
-  },
-  {
-    "id": 3,
-    "at": 18.5,
-    "text": "Wallets are public. Anyone can follow the biggest positions, and the crowd follows the bettor instead of the evidence."
-  },
-  {
-    "id": 4,
-    "at": 33.0,
-    "text": "Doom splits them apart. Bet sizes, odds and volume stay public, and that keeps the market accurate. Who is betting never touches the chain."
-  },
-  {
-    "id": 5,
-    "at": 48.5,
-    "text": "It is a real market maker over binary outcome shares."
-  },
-  {
-    "id": 6,
-    "at": 55.0,
-    "text": "Volume is public. Bettor identities on chain: zero."
-  },
-  {
-    "id": 7,
-    "at": 61.5,
-    "text": "Thirteen markets, live on Starknet mainnet."
-  },
-  {
-    "id": 8,
-    "at": 67.5,
-    "text": "Every price is a probability, read off the contract."
-  },
-  {
-    "id": 9,
-    "at": 73.0,
-    "text": "Here is a bet. First, shield your tokens into Starknet's privacy pool."
-  },
-  {
-    "id": 10,
-    "at": 81.5,
-    "text": "Pick a market. Bitcoin above one hundred fifty thousand. The market says fifty five percent."
-  },
-  {
-    "id": 11,
-    "at": 89.5,
-    "text": "Choose a side, and a stake."
-  },
-  {
-    "id": 12,
-    "at": 95.0,
-    "text": "The panel calls the contract's own quote, so what you see is what you get."
-  },
-  {
-    "id": 13,
-    "at": 102.5,
-    "text": "The pool calls the market. The pool is always the caller, so the contract never sees an address."
-  },
-  {
-    "id": 14,
-    "at": 111.5,
-    "text": "Four transactions on mainnet. Four different senders. None of them is the bettor's wallet."
-  },
-  {
-    "id": 15,
-    "at": 119.0,
-    "text": "The odds move. The market learned something. It never learned who."
-  },
-  {
-    "id": 16,
-    "at": 126.5,
-    "text": "One honest limitation. Claiming links a payout back to the bet, though never to a person."
-  },
-  {
-    "id": 17,
-    "at": 137.0,
-    "text": "Collateral is measured by balance change, not calldata. Positions key off a commitment, not an address."
-  },
-  {
-    "id": 18,
-    "at": 148.5,
-    "text": "Settlement is bonded. Anyone proposes, anyone disputes by matching the bond, and an arbiter only touches a contested market."
-  },
-  {
-    "id": 19,
-    "at": 162.0,
-    "text": "Fourteen contracts. Thirteen markets. Fifty five passing tests. Zero bettor identities."
-  },
-  {
-    "id": 20,
-    "at": 175.0,
-    "text": "Doom. Visible odds. Invisible bettors."
-  }
+  { "id": 1,  "at": 1.0,   "text": "Doom. A prediction market where the odds are public and the bettors are not." },
+  { "id": 2,  "at": 9.0,   "text": "Prediction markets work because you can see the money. That is also the problem." },
+  { "id": 3,  "at": 17.5,  "text": "Wallets are public, so the crowd follows the biggest bettor instead of the evidence." },
+  { "id": 4,  "at": 28.5,  "text": "So here is the leaderboard. Every position, largest first, from the contract." },
+  { "id": 5,  "at": 37.0,  "text": "Every size is there. The name column is drawn, and empty. A position is keyed by a secret, and the pool made the call." },
+  { "id": 6,  "at": 50.5,  "text": "Underneath is a real market maker. The price is a probability, and every buy moves it." },
+  { "id": 7,  "at": 60.0,  "text": "Bigger orders pay worse, and the panel says so before you commit." },
+  { "id": 8,  "at": 68.5,  "text": "Now the part most demos leave out. The pool charges six tokens for every private operation." },
+  { "id": 9,  "at": 79.0,  "text": "On a one token bet that is fatal. You get one point seven six back, having spent seven." },
+  { "id": 10, "at": 89.5,  "text": "So Doom tells you not to take the trade. Stake forty and it clears the fee." },
+  { "id": 11, "at": 99.5,  "text": "Anyone can open a market. Pick an asset, a direction, a strike, and the question writes itself." },
+  { "id": 12, "at": 110.0, "text": "The class is already declared, so this is a deploy. Two signatures, no terminal." },
+  { "id": 13, "at": 119.5, "text": "For price questions the panel reads Pragma and fills in the proposal." },
+  { "id": 14, "at": 128.5, "text": "Settlement stays a bonded human claim. The oracle informs it, and we say so." },
+  { "id": 15, "at": 139.0, "text": "Positions come from your wallet, not this browser. Sign once, and the keys rebuild anywhere." },
+  { "id": 16, "at": 151.0, "text": "Four transactions on mainnet. Four different senders, none of them the bettor." },
+  { "id": 17, "at": 161.0, "text": "Fourteen contracts. Ninety five tests. One command that checks every claim against the chain." },
+  { "id": 18, "at": 172.5, "text": "Doom. Visible odds. Invisible bettors." }
 ]

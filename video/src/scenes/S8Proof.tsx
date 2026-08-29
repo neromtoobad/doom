@@ -8,7 +8,7 @@ import { body, display, mono } from '../fonts'
 const STATS: [string, string][] = [
   ['14', 'contracts on mainnet'],
   ['13', 'markets deployed'],
-  ['55', 'passing Cairo tests'],
+  ['95', 'passing tests'],
   ['0', 'bettor identities on chain'],
 ]
 
@@ -72,7 +72,7 @@ export const S8Proof: React.FC = () => {
         >
           RFP-07 · prediction markets with visible odds and invisible bettors
           <br />
-          market · 0x0205a8ad…f432c4 &nbsp;·&nbsp; one market already settled on chain
+          yarn verify &nbsp;·&nbsp; eight checks that read every claim here back off mainnet
         </div>
       </AbsoluteFill>
       <Grain />

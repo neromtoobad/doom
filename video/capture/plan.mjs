@@ -15,9 +15,9 @@ const script = JSON.parse(readFileSync(join(ROOT, 'src/data/script.json'), 'utf8
 
 // Must match the scene table in src/Doom.tsx.
 const SCENES = [
-  ['title', 0, 8], ['problem', 8, 32], ['tradeoff', 32, 48], ['product', 48, 72],
-  ['bet', 72, 125], ['how', 125, 147], ['settle', 147, 161], ['proof', 161, 174],
-  ['close', 174, 180],
+  ['title', 0, 8], ['problem', 8, 28], ['book', 28, 50], ['maker', 50, 68],
+  ['fee', 68, 97], ['create', 97, 118], ['oracle', 118, 138], ['keys', 138, 151],
+  ['proof', 151, 171], ['close', 171, 180],
 ]
 const sceneAt = (t) => (SCENES.find(([, a, b]) => t >= a && t < b) ?? SCENES.at(-1))[0]
 const sceneEnd = (name) => SCENES.find(([n]) => n === name)[2]
