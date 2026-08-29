@@ -302,9 +302,38 @@ export type SavedPosition = {
   txHash?: string;
 };
 
+/**
+ * A market address in one canonical form: 0x + 64 hex, lower case.
+ *
+ * Starknet addresses are felts, so the same market is written several ways —
+ * `num.toHex` strips leading zeros, a deep link may carry a padded form, and the
+ * constants file uses its own. Positions saved by older builds therefore hold
+ * whichever spelling was in scope that day.
+ */
+export function canonMarket(a: string): string {
+  try {
+    return "0x" + num.toBigInt(a.trim()).toString(16).padStart(64, "0");
+  } catch {
+    return a;
+  }
+}
+
+/**
+ * Whether two spellings name the same market.
+ *
+ * This existed as `===` in the claim picker, which is how a position could be sitting
+ * in a browser, funded and winning, while the panel that claims it reported nothing
+ * saved for this market. Compare felts, never strings.
+ */
+export function sameMarket(a: string | undefined, b: string | undefined): boolean {
+  if (!a || !b) return false;
+  return canonMarket(a) === canonMarket(b);
+}
+
 export function savePosition(p: SavedPosition) {
   const all = loadPositions();
-  all.push(p);
+  // Canonical on the way in, so a position saved today is findable by any spelling.
+  all.push({ ...p, market: canonMarket(p.market) });
   localStorage.setItem(KEY, JSON.stringify(all));
 }
 
@@ -345,11 +374,11 @@ export function importPositions(text: string): { added: number; skipped: number 
   if (!incoming) throw new Error("Not a Doom backup file.");
 
   const existing = loadPositions();
-  const seen = new Set(existing.map((p) => `${p.market}:${p.secret}`));
+  const seen = new Set(existing.map((p) => `${canonMarket(p.market)}:${p.secret}`));
   let added = 0;
   for (const p of incoming) {
     if (!p?.market || !p?.secret) continue;
-    const k = `${p.market}:${p.secret}`;
+    const k = `${canonMarket(p.market)}:${p.secret}`;
     if (seen.has(k)) continue;
     seen.add(k);
     existing.push(p);

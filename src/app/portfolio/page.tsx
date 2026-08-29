@@ -24,6 +24,7 @@ import { loadUserMarkets, normalizeAddress } from "@/lib/create";
 import Portfolio from "../components/Portfolio";
 import SelectWallet from "../components/client/WalletHandle/SelectWallet";
 import WalletVault from "../components/WalletVault";
+import LegacyVault from "../components/LegacyVault";
 import { useStoreWallet } from "../components/Wallet/walletContext";
 
 export default function PortfolioPage() {
@@ -106,8 +107,8 @@ export default function PortfolioPage() {
 
         {unlocked && claimable > 0n && (
           <div className={p.claim}>
-            <b>{fmtStrk(claimable)} STRK claimable.</b> Open the market and claim with the
-            secret from the position.
+            <b>{fmtStrk(claimable)} STRK claimable.</b> Open the market — the position
+            below is already matched to it, so claiming is one button.
           </div>
         )}
 
@@ -125,6 +126,7 @@ export default function PortfolioPage() {
                 Nothing here yet. <Link href="/" className={p.link}>Find a market →</Link>
               </p>
             )}
+            <LegacyVault onChange={refresh} />
           </>
         )}
       </div>

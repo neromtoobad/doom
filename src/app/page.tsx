@@ -50,6 +50,7 @@ import {
   priceCents,
   quoteLocal,
   readBook,
+  sameMarket,
   readPoolFee,
   type BookEntry,
   quoteShares,
@@ -765,7 +766,7 @@ function Hero({
  * would revert, so this walks forward past whatever is already known locally.
  */
 function nextSlot(master: string, market: string, saved: SavedPosition[]): number {
-  const used = new Set(saved.filter((p) => p.market === market).map((p) => p.secret));
+  const used = new Set(saved.filter((p) => sameMarket(p.market, market)).map((p) => p.secret));
   for (let i = 0; i < 64; i++) {
     if (!used.has(derivedSecret(master, market, i))) return i;
   }
@@ -1106,7 +1107,7 @@ export default function Home() {
     }
   }
 
-  const mySecrets = saved.filter((p) => !market || p.market === market.address);
+  const mySecrets = saved.filter((p) => !market || sameMarket(p.market, market.address));
 
   return (
     <main className={s.page}>

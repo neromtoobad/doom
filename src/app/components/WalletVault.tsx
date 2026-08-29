@@ -10,7 +10,7 @@
 import { useState } from "react";
 import s from "../market.module.css";
 import v from "./vault.module.css";
-import { MARKETS, savePosition, loadPositions, type SavedPosition } from "@/lib/doom";
+import { MARKETS, savePosition, loadPositions, canonMarket, type SavedPosition } from "@/lib/doom";
 import { deriveMaster, recoverPositions, NonDeterministicWallet } from "@/lib/vault";
 import { loadUserMarkets, normalizeAddress } from "@/lib/create";
 import * as constants from "@/utils/constants";
@@ -52,7 +52,9 @@ export default function WalletVault({
       ];
       const found = await recoverPositions(provider, master, [...new Set(known)]);
 
-      const have = new Set(loadPositions().map((p: SavedPosition) => `${p.market}:${p.secret}`));
+      const have = new Set(
+        loadPositions().map((p: SavedPosition) => `${canonMarket(p.market)}:${p.secret}`),
+      );
       let added = 0;
       for (const p of found) {
         if (have.has(`${p.market}:${p.secret}`)) continue;
