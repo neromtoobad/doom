@@ -9,6 +9,8 @@
 import s from "../market.module.css";
 import w from "./watch.module.css";
 import Nav from "../components/Nav";
+import walkthrough from "../../media/walkthrough.mp4";
+import poster from "../../../public/og.png";
 
 const CHAPTERS: [string, string][] = [
   ["0:00", "What Doom is"],
@@ -34,10 +36,10 @@ export default function Watch() {
         </p>
 
         {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-        <video className={w.video} controls preload="metadata" playsInline poster="og.png">
-          <source src="walkthrough.mp4" type="video/mp4" />
+        <video className={w.video} controls preload="metadata" playsInline poster={poster.src}>
+          <source src={walkthrough} type="video/mp4" />
           Your browser cannot play this video.{" "}
-          <a href="walkthrough.mp4" className={w.link}>Download it instead</a>.
+          <a href={walkthrough} className={w.link}>Download it instead</a>.
         </video>
 
         <div className={w.chapters}>

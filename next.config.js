@@ -14,6 +14,20 @@ const nextConfig = {
   basePath: process.env.GITHUB_PAGES ? '/doom' : '',
   assetPrefix: process.env.GITHUB_PAGES ? '/doom/' : '',
   trailingSlash: true,
+
+  // Video is not one of the media types Next imports out of the box, and the
+  // walkthrough has to be imported rather than pathed: a literal "/walkthrough.mp4"
+  // ignores basePath, and a relative "walkthrough.mp4" resolves against the page, so
+  // it 404s from /watch/. Emitting it as an asset makes webpack write the URL with
+  // the prefix already on it, the same way the token art works.
+  webpack(config) {
+    config.module.rules.push({
+      test: /\.mp4$/i,
+      type: 'asset/resource',
+      generator: { filename: 'static/media/[name].[hash][ext]' },
+    })
+    return config
+  },
 }
 
 module.exports = nextConfig
