@@ -11,6 +11,8 @@ import DecisionPanel from "./DecisionPanel";
 import SelectWallet from "./components/client/WalletHandle/SelectWallet";
 import { useStoreWallet } from "./components/Wallet/walletContext";
 import { describeBet } from "@/lib/disclosure";
+import { payoutSummary, moveToTarget, countdown } from "@/lib/payout";
+import { parseQuestion, readMedian } from "@/lib/pragma";
 import * as constants from "@/utils/constants";
 import {
   finalizeCall,
@@ -475,6 +477,89 @@ function OracleSettle({
         <div className={msg.ok ? s.oracleOk : s.oracleErr}>{msg.text}</div>
       )}
       {address ? null : null}
+    </div>
+  );
+}
+
+/**
+ * The bet as a payout: pay this, get that, and how far the price has to move.
+ *
+ * Doom already computed every number here — it just showed them the way the contract
+ * thinks. "You receive 1.76 shares / return, after fee: -74.9%" is accurate and reads
+ * as arithmetic; "pay 7.00, get 1.76, 0.25x" reads as money, and it is the phrasing
+ * that stops the trade. The multiplier is the same figure the fee warning already
+ * argued about, said once, in the size a person actually looks at.
+ *
+ * The move-to-target line is genuinely new. A question reading "above $150,000" means
+ * something very different at $109k spot than at $148k, and that distance was nowhere
+ * on the page.
+ */
+function PayoutCard({
+  market,
+  provider,
+  amountWei,
+  shares,
+  poolFee,
+}: {
+  market: MarketState;
+  provider: ProviderInterface;
+  amountWei: bigint;
+  shares: bigint | null;
+  poolFee: bigint | null;
+}) {
+  const [spot, setSpot] = useState<number | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+  const parsed = parseQuestion(market.question);
+
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 30000);
+    return () => clearInterval(t);
+  }, []);
+
+  useEffect(() => {
+    let dead = false;
+    if (!parsed) return;
+    readMedian(provider, parsed.pair)
+      .then((m) => !dead && m && setSpot(m.price))
+      .catch(() => {});
+    return () => {
+      dead = true;
+    };
+  }, [provider, parsed?.pair]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (shares == null || shares <= 0n || amountWei <= 0n) return null;
+  const p = payoutSummary(amountWei, shares, poolFee);
+  const left = countdown(market.closesAt, now);
+  const move = spot != null && parsed ? moveToTarget(spot, parsed.threshold) : null;
+
+  return (
+    <div className={s.po}>
+      <div className={s.poGrid}>
+        <div className={s.poCell}>
+          <div className={s.poK}>You pay</div>
+          <div className={s.poPay}>{fmtStrk(p.payWei)} STRK</div>
+        </div>
+        <div className={s.poCell}>
+          <div className={s.poK}>You get if right</div>
+          <div className={p.profitable ? s.poGetUp : s.poGetDown}>
+            {fmtStrk(p.getWei)} STRK
+          </div>
+        </div>
+        {p.multiplier !== null && (
+          <div className={p.profitable ? s.poMultUp : s.poMultDown}>
+            {p.multiplier.toFixed(2)}x
+          </div>
+        )}
+      </div>
+      <div className={s.poFoot}>
+        {move !== null && parsed && (
+          <span className={s.poFootItem}>
+            needs {move >= 0 ? "+" : ""}
+            {move.toFixed(1)}% to ${parsed.threshold.toLocaleString()}
+          </span>
+        )}
+        {left && <span className={s.poFootItem}>closes in {left}</span>}
+      </div>
     </div>
   );
 }
@@ -1396,6 +1481,35 @@ export default function Home() {
                           />
                           <span className={s.inputSuffix}>STRK</span>
                         </div>
+                        {/* The fee is flat, so the difference between 1 and 40 STRK
+                            is the difference between a losing bet and a real one.
+                            Making the sizes one tap makes that visible. */}
+                        <div className={s.poQuick}>
+                          {["1", "10", "40"].map((v) => (
+                            <button key={v} className={s.poQuickBtn} onClick={() => setAmount(v)} type="button">
+                              {v}
+                            </button>
+                          ))}
+                          <button className={s.poQuickBtn} onClick={() => setAmount("")} type="button">
+                            clear
+                          </button>
+                        </div>
+                        {market.kind === "cpmm" && quote != null && quote > 0n && (() => {
+                          let amt = 0n;
+                          try {
+                            amt = parseStrk(amount);
+                          } catch {}
+                          return (
+                            <PayoutCard
+                              market={market}
+                              provider={provider}
+                              amountWei={amt}
+                              shares={quote}
+                              poolFee={poolFee}
+                            />
+                          );
+                        })()}
+
                         {market.kind === "cpmm" && quote != null && quote > 0n && (
                           <div className={s.fill}>
                             <div className={s.fillRow}>

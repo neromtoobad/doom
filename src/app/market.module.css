@@ -1026,3 +1026,95 @@
   padding-left: 11px;
   border-left: 2px solid var(--line);
 }
+
+/* ── payout card ───────────────────────────────────────────────────────────────
+   The bet said as money rather than as a quote. Sits above the breakdown, which
+   stays for anyone who wants the arithmetic. */
+.po {
+  margin: 14px 0 10px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.02);
+}
+.poGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  align-items: center;
+  gap: 12px;
+}
+.poCell { min-width: 0; }
+.poK {
+  font-family: var(--font-mono-ui), monospace;
+  font-size: 10px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 5px;
+}
+.poPay {
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+.poGetUp {
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--up, #3ddc84);
+  overflow-wrap: anywhere;
+}
+.poGetDown {
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--down, #ff6b6b);
+  overflow-wrap: anywhere;
+}
+.poMultUp {
+  justify-self: end;
+  padding: 7px 12px;
+  border-radius: 9px;
+  font-weight: 800;
+  font-size: 15px;
+  background: rgba(61, 220, 132, 0.14);
+  color: var(--up, #3ddc84);
+  white-space: nowrap;
+}
+.poMultDown {
+  justify-self: end;
+  padding: 7px 12px;
+  border-radius: 9px;
+  font-weight: 800;
+  font-size: 15px;
+  background: rgba(255, 107, 107, 0.13);
+  color: var(--down, #ff6b6b);
+  white-space: nowrap;
+}
+.poFoot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-top: 12px;
+  padding-top: 11px;
+  border-top: 1px solid var(--line);
+}
+.poFootItem {
+  font-family: var(--font-mono-ui), monospace;
+  font-size: 11px;
+  color: var(--muted);
+}
+.poQuick { display: flex; gap: 7px; margin-top: 9px; }
+.poQuickBtn {
+  padding: 6px 13px;
+  border-radius: 7px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.poQuickBtn:hover { color: var(--text); }
