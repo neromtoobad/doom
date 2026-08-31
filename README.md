@@ -10,11 +10,36 @@ live on mainnet.
 | | |
 |---|---|
 | **Demo** | https://neromtoobad.github.io/doom/ |
-| **Video** | https://youtu.be/zUd1gX9ZN9Q — three minutes, including a bet end to end |
+| **Walkthrough** | https://neromtoobad.github.io/doom/watch/ — three minutes against the deployed site |
 
 This is [RFP-07](https://github.com/starkience/strk20-hackathon/blob/main/IDEAS.md) —
 *"Prediction markets with visible odds and invisible bettors"* — plus a governance
 layer that the same primitive makes possible.
+
+## What is here
+
+Four things, not one.
+
+- **The markets.** A fixed-product market maker over binary outcomes, in Cairo.
+  Thirteen instances live on mainnet. A position is recorded against
+  `poseidon(DOOM_POSITION_TAG, secret)` and never against an address — inside
+  `privacy_invoke` the caller is the pool, so the contract cannot see the bettor even
+  if it wanted to. The book shows every size and has no name column, because sizes are
+  what make odds mean anything and names are what make people herd.
+- **Opening a market.** `DoomMarket` is already declared, so anyone can deploy an
+  instance from the site and seed it. No allowlist, no admin.
+- **Settling one.** Questions are written to a template `parseQuestion` can read back,
+  so a market resolves from the Pragma median. `propose()` takes any caller, a bonded
+  challenge window follows, and a disputed outcome falls through to an arbiter.
+- **`DoomDecision`.** Futarchy over anonymous markets: two conditional branches, the
+  higher YES-share wins, the losing branch voids and refunds. The `Decided` event
+  carries no signer.
+
+Two details that are easy to miss. Keys come from a wallet signature —
+`poseidon(tag, sig)`, then per market and slot — so the same bets appear on any device
+and nothing sensitive sits in browser storage. And the trade panel argues against you:
+the pool charges a flat 6 STRK per operation, so a 1 STRK bet loses money even when it
+wins, and the panel says so, with the multiplier, before you sign.
 
 ---
 
@@ -166,10 +191,17 @@ resolver can be added later without redeploying any existing market.
 - **Mark to market.** Positions show what they are worth now, not only what they cost:
   `shares x side price` on a share market, or the payout the current pots imply on a
   parimutuel one.
-- **Backup.** A position is a secret in one browser's storage, so clearing site data
-  destroys the funds and no on-chain data can rebuild the secret. The vault exports to
-  a file and imports back; re-importing is idempotent. The file never leaves the
-  browser.
+- **Payout, not a quote.** The panel reads `pay 46.00 / get 47.13 / 1.02x`, and how far
+  spot has to travel to reach the strike, from the Pragma median. The same bet at
+  1 STRK reads `0.25x`, which is the flat fee showing itself.
+- **What a bet publishes.** Before signing, the panel lists what `Staked` actually
+  writes and what it cannot, then the part most privacy tools leave out: your size is
+  public, your stake and your claim share a commitment, timing correlates. The
+  anonymity number is counted from the market's own event log, and when a market is
+  empty it says the bet would be identifiable by its amount alone.
+- **Keys from the wallet.** Sign once and positions rebuild on any device. Older
+  positions predate this and live in one browser, so the vault still exports and
+  imports them; re-importing is idempotent and the file never leaves the browser.
 - **Probability history**, rebuilt from each market's own `Bought` events.
 
 ## What a bet actually costs
@@ -442,7 +474,7 @@ Three problems, hardest first:
 ## AI tools
 
 Built with Claude Code: planning and competitive research, Cairo drafting and review,
-frontend scaffolding. Architecture, mechanism design and every mainnet transaction are
+frontend scaffolding. The design, the mechanism and every mainnet transaction are
 the author's own. Commits are authored by a human account.
 
 ## License
