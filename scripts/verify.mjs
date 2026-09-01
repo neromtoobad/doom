@@ -155,6 +155,31 @@ await check('Pragma publishes the pairs the templates offer', async () => {
   return out.join(', ')
 })
 
+// The strongest claim a contract repository can make is that it builds to the thing
+// that is actually deployed. Two of the compiled classes hash to the class hashes
+// live on mainnet, so this is checkable rather than asserted — and it fails loudly if
+// the source ever drifts from what the markets are running.
+await check('the repository builds to the classes deployed on mainnet', async () => {
+  const { existsSync } = await import('node:fs')
+  const dir = 'cairo/target/dev'
+  const want = [
+    ['doom_DoomMarket', '0xa8aa0595ab9099a13208546a9910c9d525dc13d124114de9541b6d71adce1f'],
+    ['doom_DoomPredictionMarket', CPMM_CLASS],
+  ]
+  const norm = (h) => '0x' + BigInt(h).toString(16)
+  const out = []
+  for (const [name, expected] of want) {
+    const f = `${dir}/${name}.contract_class.json`
+    if (!existsSync(f)) throw new Error(`${name} not built — run \`scarb build\` in cairo/ first`)
+    const got = norm(hash.computeContractClassHash(JSON.parse(read(f))))
+    if (got !== norm(expected)) {
+      throw new Error(`${name} builds to ${got}, but mainnet runs ${norm(expected)}`)
+    }
+    out.push(name.replace('doom_', ''))
+  }
+  return `${out.join(' and ')} hash to the deployed classes`
+})
+
 console.log(
   failed === 0
     ? '\nEverything checks out.\n'
