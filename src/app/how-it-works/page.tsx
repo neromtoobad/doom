@@ -92,6 +92,36 @@ export default function HowItWorks() {
           </p>
         </section>
 
+        {/* The governance layer is in the repository, tested, and not yet deployed.
+            Saying so plainly beats both silence and a screenshot of something that
+            does not exist — and the moment an instance is live, the panel on the
+            board renders it with no further change. */}
+        <section className={h.section}>
+          <h2 className={h.h2}>Deciding by market, not by vote</h2>
+          <p className={h.body}>
+            The same primitive answers a different question. A prediction market asks
+            &ldquo;will X happen?&rdquo;. Futarchy asks &ldquo;should we do X?&rdquo;, by
+            opening two conditional markets on the same outcome — one assuming the
+            proposal is adopted, one assuming it is rejected. Whichever prices success
+            higher <b>is</b> the decision. The losing branch never happened, so it voids
+            and every stake in it is refunded.
+          </p>
+          <p className={h.body}>
+            Every live futarchy — MetaDAO on Solana, Optimism&apos;s OP experiment — is
+            fully transparent, and the documented failure is exactly that: whales get
+            watched and copied, insiders get pressured, positions become politics. Over
+            anonymous markets the prices stay public and the participants do not, so
+            <code> decide()</code> takes no arguments, has no authorized caller, and the{" "}
+            <code>Decided</code> event names no signer.
+          </p>
+          <p className={h.caveat}>
+            <code>DoomDecision</code> is written and tested — seven Cairo tests covering
+            the tie rule, the empty-book case and the losing branch&apos;s refund — but no
+            instance is deployed on mainnet yet, so nothing for it appears on the board.
+            The contract is in the repository if you want to read it before it runs.
+          </p>
+        </section>
+
         <section className={h.section}>
           <h2 className={h.h2}>What this does not hide</h2>
           <ul className={h.list}>
